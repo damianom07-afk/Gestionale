@@ -1,7 +1,7 @@
 // Export e import Excel (.xlsx) senza librerie esterne.
 // Un file .xlsx è un archivio ZIP che contiene file XML: qui li scriviamo e leggiamo a mano.
 
-import { state, uid, replaceEverything, setMeta, todayISO, categoryById, accountById, assetById, CATEGORY_COLORS } from './model.js';
+import { state, uid, replaceEverything, setMeta, todayISO, categoryById, accountById, CATEGORY_COLORS } from './model.js';
 
 // ================= ZIP =================
 
@@ -244,18 +244,13 @@ export function exportWorkbook() {
       ['ID', 'Nome', 'Tipo', 'Emoji', 'Colore', 'Parole chiave'],
       ...state.categories.map((c) => [c.id, c.name, c.kind, c.emoji, c.color, (c.keywords || []).join(', ')])
     ],
-    Strumenti: [
-      ['ID', 'Nome', 'Tipo', 'Prezzo attuale', 'Data prezzo'],
-      ...state.assets.map((a) => [a.id, a.name, a.type, a.price || 0, a.priceDate || ''])
-    ],
-    Operazioni: [
-      ['ID', 'Data', 'Strumento', 'Tipo', 'Quantità', 'Prezzo', 'Commissioni', 'Importo', 'Conto', 'Note'],
-      ...[...state.ops].sort((a, b) => b.date.localeCompare(a.date))
-        .map((o) => [o.id, o.date, assetById(o.assetId)?.name || '', o.kind, o.qty || '', o.price || '', o.fees || 0, o.amount || '', accName(o.accountId), o.note || ''])
-    ],
     Regole: [
       ['Esercente', 'Categoria'],
       ...state.rules.map((r) => [r.key, catName(r.categoryId)])
+    ],
+    Impostazioni: [
+      ['Chiave', 'Valore'],
+      ['Liquidità obiettivo', state.meta.liquidityTarget != null ? euros(state.meta.liquidityTarget) : '']
     ]
   };
   return buildXlsx(sheets);
@@ -301,17 +296,12 @@ export async function parseWorkbook(file) {
   const categories = toObjects(sheets.Categorie).map((r, i) => ({
     id: String(r.ID || uid()),
     name: String(r.Nome || 'Senza nome'),
-    kind: String(r.Tipo).toLowerCase().startsWith('e') ? 'entrata' : 'spesa',
+    kind: toKind(r.Tipo),
     emoji: String(r.Emoji || '•'),
     color: String(r.Colore || CATEGORY_COLORS[i % CATEGORY_COLORS.length]),
     keywords: String(r['Parole chiave'] || '').split(',').map((s) => s.trim()).filter(Boolean),
     order: i
   }));
-  const assets = toObjects(sheets.Strumenti).map((r) => ({
-    id: String(r.ID || uid()), name: String(r.Nome || 'Strumento'), type: String(r.Tipo || 'Altro'),
-    price: toNum(r['Prezzo attuale']), priceDate: r['Data prezzo'] ? toDate(r['Data prezzo']) : ''
-  }));
-
   // Ricerca per nome; se manca, crea al volo (utile se aggiungi righe direttamente in Excel)
   const findOrCreate = (list, name, make) => {
     const n = String(name || '').trim();
@@ -329,52 +319,49 @@ export async function parseWorkbook(file) {
     categories.push(c);
     return c.id;
   };
-  const assetId = (name) => findOrCreate(assets, name, (n) => ({ id: uid(), name: n, type: 'Altro', price: 0, priceDate: '' }));
 
   if (accounts.length === 0) accounts.push({ id: uid(), name: 'Conto corrente', initial: 0, order: 0 });
 
   const transactions = toObjects(sheets.Movimenti).map((r) => {
-    const kind = String(r.Tipo).toLowerCase().startsWith('e') ? 'entrata' : 'spesa';
+    const kind = toKind(r.Tipo);
     return {
       id: String(r.ID || uid()),
       kind,
       amount: Math.round(Math.abs(toNum(r.Importo)) * 100),
       date: toDate(r.Data),
-      categoryId: categoryId(r.Categoria || (kind === 'spesa' ? 'Altro' : 'Altre entrate'), kind),
+      categoryId: categoryId(r.Categoria || DEFAULT_CAT[kind], kind),
       accountId: accountId(r.Conto) || accounts[0].id,
       note: String(r.Descrizione || ''),
       createdAt: Date.now()
     };
   });
 
-  const ops = toObjects(sheets.Operazioni).map((r) => {
-    const t = String(r.Tipo).toLowerCase();
-    return {
-      id: String(r.ID || uid()),
-      assetId: assetId(r.Strumento),
-      kind: t.startsWith('v') ? 'vendita' : t.startsWith('d') ? 'dividendo' : 'acquisto',
-      date: toDate(r.Data),
-      qty: toNum(r['Quantità']),
-      price: toNum(r.Prezzo),
-      fees: toNum(r.Commissioni),
-      amount: toNum(r.Importo),
-      accountId: r.Conto ? accountId(r.Conto) : null,
-      note: String(r.Note || '')
-    };
-  }).filter((o) => o.assetId);
-
   const rules = toObjects(sheets.Regole).map((r) => {
     const cat = categories.find((c) => c.name.toLowerCase() === String(r.Categoria).toLowerCase());
     return cat && r.Esercente ? { key: String(r.Esercente), categoryId: cat.id, updatedAt: Date.now() } : null;
   }).filter(Boolean);
 
-  return { accounts, categories, transactions, assets, ops, rules };
+  const settings = Object.fromEntries(toObjects(sheets.Impostazioni).map((r) => [String(r.Chiave), r.Valore]));
+  const target = settings['Liquidità obiettivo'];
+  const liquidityTarget = target === '' || target === undefined ? null : Math.round(toNum(target) * 100);
+
+  return { accounts, categories, transactions, rules, liquidityTarget };
+}
+
+const DEFAULT_CAT = { spesa: 'Altro', entrata: 'Altre entrate', investimento: 'Investimenti' };
+
+function toKind(v) {
+  const t = String(v || '').toLowerCase().trim();
+  if (t.startsWith('e')) return 'entrata';
+  if (t.startsWith('i')) return 'investimento';
+  return 'spesa';
 }
 
 export async function importWorkbook(file) {
   const data = await parseWorkbook(file);
   const lastExport = state.meta.lastExport;
   data.meta = lastExport ? [{ key: 'lastExport', value: lastExport }] : [];
+  if (data.liquidityTarget !== null) data.meta.push({ key: 'liquidityTarget', value: data.liquidityTarget });
   await replaceEverything(data);
   return data;
 }

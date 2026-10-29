@@ -55,7 +55,8 @@ h1, h2, h3, p { margin: 0; }
 .hero-card { background: var(--lemon); color: var(--char); border-radius: 28px; padding: 22px 20px 20px; display: flex; flex-direction: column; gap: 6px; }
 .hero-amount { font-size: 58px; font-weight: 900; font-stretch: 115%; letter-spacing: -.035em; line-height: 1; margin: 4px 0 12px; white-space: nowrap; }
 .hero-split { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; border-top: 2px solid var(--char); padding-top: 12px; }
-.hero-split div { display: flex; flex-direction: column; gap: 4px; }
+.hero-split div, .hero-split button { display: flex; flex-direction: column; gap: 4px; text-align: left; }
+.hero-formula { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: rgba(23, 23, 23, .55); margin: -8px 0 10px; }
 .hero-split strong { font-size: 16px; font-weight: 800; }
 .hero-split span { font-size: 10px; }
 
@@ -70,6 +71,21 @@ h1, h2, h3, p { margin: 0; }
 .lav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 2px solid var(--char); padding-top: 12px; }
 .lav-grid div { display: flex; flex-direction: column; gap: 3px; }
 .lav-grid strong { font-size: 17px; font-weight: 800; }
+
+/* ---------- Liquidità e obiettivo ---------- */
+.liq-card { background: var(--surface); border-radius: 28px; padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 8px; text-align: left; width: 100%; border: 1.5px solid var(--line); }
+.liq-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.liq-target { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.liq-amount { font-size: 40px; font-weight: 900; font-stretch: 112%; letter-spacing: -.03em; line-height: 1.05; white-space: nowrap; }
+.liq-bar { height: 10px; border-radius: 5px; background: var(--surface-2); overflow: hidden; margin-top: 6px; }
+.liq-bar i { display: block; height: 100%; background: var(--text); border-radius: 5px; }
+.liq-bar.full i { background: var(--lemon); }
+.liq-status { font-size: 14px; font-weight: 600; color: var(--muted); }
+.liq-status.over { color: var(--lav); }
+.liq-status.under { color: var(--text); }
+.liq-status.ok { color: var(--lemon); }
+.between { justify-content: space-between; align-items: center; }
+.big-num { font-size: 22px; font-weight: 900; }
 
 /* ---------- Card generiche ---------- */
 .card { background: var(--surface); border-radius: var(--radius); padding: 14px; }
@@ -108,6 +124,7 @@ h1, h2, h3, p { margin: 0; }
 .key i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .key i.lemon { background: var(--lemon); }
 .key i.white { background: var(--text); }
+.key i.lav { background: var(--lav); }
 .stackbar { display: block; }
 
 /* ---------- Righe movimento ---------- */
@@ -121,6 +138,8 @@ h1, h2, h3, p { margin: 0; }
 .tx-text small { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tx-amount { font-weight: 800; font-size: 15px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tx-amount.entrata { color: var(--lemon); }
+.tx-amount.investimento { color: var(--lav); }
+.tx-amount.neg { color: var(--danger); }
 .tx-amount.stack { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .tx-amount small { font-size: 12px; font-weight: 700; }
 .tx-clip { font-size: 13px; opacity: .7; }
@@ -130,6 +149,7 @@ h1, h2, h3, p { margin: 0; }
 .filters { display: flex; flex-direction: column; gap: 10px; }
 .totals { display: flex; gap: 14px; font-size: 13px; color: var(--muted); padding: 0 4px; flex-wrap: wrap; }
 .totals .entrata { color: var(--lemon); }
+.totals .investimento { color: var(--lav); }
 .day { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .day-head { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 0 6px; }
 .day-head span:first-child::first-letter { text-transform: uppercase; }
@@ -146,7 +166,7 @@ h1, h2, h3, p { margin: 0; }
 .hidden { display: none !important; }
 
 .segmented { display: flex; background: var(--surface); border-radius: 14px; padding: 4px; gap: 4px; }
-.segmented button { flex: 1; padding: 9px 6px; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.segmented button { flex: 1; padding: 9px 4px; white-space: nowrap; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--muted); }
 .segmented button.active { background: var(--text); color: var(--char); }
 .segmented.big button { padding: 11px 6px; font-size: 15px; }
 .segmented.big button.active { background: var(--lemon); }
@@ -205,6 +225,7 @@ input[type="date"].input { min-width: 0; }
 .amount-field .currency { font-size: 34px; font-weight: 900; color: var(--muted); }
 .input.amount { background: none; border: 0; padding: 0; font-size: 46px; font-weight: 900; font-stretch: 112%; letter-spacing: -.02em; min-height: 0; border-radius: 0; }
 .amount-field.entrata .input.amount { color: var(--lemon); }
+.amount-field.investimento .input.amount { color: var(--lav); }
 
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .cat-chip { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; background: var(--surface-2); font-size: 14px; font-weight: 600; border: 1.5px solid transparent; }

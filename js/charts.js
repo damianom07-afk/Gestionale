@@ -25,20 +25,26 @@ export function donut(items, { size = 168, stroke = 26, center = '' , sub = ''} 
 
 /** Barre affiancate entrate/spese per mese. data = [{ key:'YYYY-MM', income, expense }] (centesimi) */
 export function monthBars(data, { height = 170 } = {}) {
+  // tre barre per mese: entrate (giallo), spese (bianco), investito (viola)
   const w = 340, padB = 26, padT = 12;
-  const max = Math.max(1, ...data.flatMap((d) => [d.income, d.expense]));
+  const max = Math.max(1, ...data.flatMap((d) => [d.income, d.expense, d.invested || 0]));
   const slot = w / data.length;
-  const bw = Math.min(16, slot / 3.2);
+  const bw = Math.min(12, slot / 4.2);
+  const gap = 2;
   const ch = height - padB - padT;
+  const bar = (x, v, fill, label, opacity = 1) => {
+    const hh = (v / max) * ch;
+    return `<rect x="${x}" y="${padT + ch - hh}" width="${bw}" height="${Math.max(hh, 1.5)}" rx="3" fill="${fill}" opacity="${opacity}"><title>${label} ${eur(v)}</title></rect>`;
+  };
   const bars = data.map((d, i) => {
     const x = i * slot + slot / 2;
-    const hi = (d.income / max) * ch, he = (d.expense / max) * ch;
     const m = Number(d.key.slice(5)) - 1;
     const last = i === data.length - 1;
-    return `
-      <rect x="${x - bw - 2}" y="${padT + ch - hi}" width="${bw}" height="${Math.max(hi, 1.5)}" rx="4" fill="var(--lemon)"><title>Entrate ${eur(d.income)}</title></rect>
-      <rect x="${x + 2}" y="${padT + ch - he}" width="${bw}" height="${Math.max(he, 1.5)}" rx="4" fill="var(--text)" opacity="${last ? 1 : 0.55}"><title>Spese ${eur(d.expense)}</title></rect>
-      <text x="${x}" y="${height - 6}" text-anchor="middle" class="axis${last ? ' current' : ''}">${MONTHS_SHORT[m]}</text>`;
+    const left = x - bw * 1.5 - gap;
+    return bar(left, d.income, 'var(--lemon)', 'Entrate') +
+      bar(left + bw + gap, d.expense, 'var(--text)', 'Spese', last ? 1 : 0.6) +
+      bar(left + 2 * (bw + gap), d.invested || 0, 'var(--lav)', 'Investito') +
+      `<text x="${x}" y="${height - 6}" text-anchor="middle" class="axis${last ? ' current' : ''}">${MONTHS_SHORT[m]}</text>`;
   }).join('');
   return svg(`<svg class="bars" viewBox="0 0 ${w} ${height}" preserveAspectRatio="none" role="img">
     <line x1="0" x2="${w}" y1="${padT + ch + 0.5}" y2="${padT + ch + 0.5}" stroke="var(--line)"/>

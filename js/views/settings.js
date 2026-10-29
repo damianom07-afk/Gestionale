@@ -1,9 +1,9 @@
 import {
-  state, accountBalance, saveAccount, deleteAccount, saveCategory, deleteCategory, categoriesOf,
+  state, saveCategory, deleteCategory, categoriesOf, KINDS, KIND_LABEL, KIND_LABEL_PLURAL,
   wipeEverything, loadDemoData, clearRules, CATEGORY_COLORS
 } from '../model.js';
 import { downloadBackup, importWorkbook } from '../xlsx.js';
-import { h, eur, shortDate, openSheet, field, toast, confirmDialog, pickFile, parseEuro, centsToInput, sectionTitle, segmented } from '../ui.js';
+import { h, shortDate, openSheet, field, toast, confirmDialog, pickFile, sectionTitle, segmented } from '../ui.js';
 
 export function renderSettings(ctx) {
   const root = h('div', { class: 'page' });
@@ -40,19 +40,10 @@ export function renderSettings(ctx) {
     h('p', { class: 'hint' }, 'Le foto degli scontrini restano nell’app e non vengono incluse nel file Excel.')
   ));
 
-  // --- Conti
-  root.append(sectionTitle('Conti', h('button', { class: 'link', onclick: () => editAccount(ctx) }, '+ Nuovo')));
-  root.append(h('section', { class: 'card list' }, state.accounts.map((a) =>
-    h('button', { class: 'tx-row', onclick: () => editAccount(ctx, a) },
-      h('span', { class: 'tx-icon', style: { '--c': '#FFF21A' } }, '🏦'),
-      h('span', { class: 'tx-text' }, h('strong', {}, a.name), h('small', {}, `Saldo iniziale ${eur(a.initial || 0)}`)),
-      h('span', { class: 'tx-amount' }, eur(accountBalance(a.id))))
-  )));
-
   // --- Categorie
   root.append(sectionTitle('Categorie', h('button', { class: 'link', onclick: () => editCategory(ctx, null, 'spesa') }, '+ Nuova')));
-  for (const kind of ['spesa', 'entrata']) {
-    root.append(h('p', { class: 'eyebrow pad' }, kind === 'spesa' ? 'Spese' : 'Entrate'));
+  for (const kind of KINDS) {
+    root.append(h('p', { class: 'eyebrow pad' }, KIND_LABEL_PLURAL[kind]));
     root.append(h('section', { class: 'card list' }, categoriesOf(kind).map((c) =>
       h('button', { class: 'tx-row', onclick: () => editCategory(ctx, c) },
         h('span', { class: 'tx-icon', style: { '--c': c.color } }, c.emoji),
@@ -83,53 +74,20 @@ export function renderSettings(ctx) {
       h('button', {
         class: 'btn danger ghost',
         onclick: async () => {
-          if (!(await confirmDialog('Cancellare TUTTI i dati (movimenti, investimenti, categorie personalizzate)? Fai prima un backup Excel se ti serve.', { ok: 'Cancella tutto', danger: true }))) return;
+          if (!(await confirmDialog('Cancellare TUTTI i dati (movimenti, conti, obiettivo, categorie personalizzate)? Fai prima un backup Excel se ti serve.', { ok: 'Cancella tutto', danger: true }))) return;
           if (!(await confirmDialog('Sei sicuro? L’operazione non si può annullare.', { ok: 'Sì, cancella', danger: true }))) return;
           await wipeEverything(); toast('Dati cancellati'); ctx.go('home');
         }
       }, 'Cancella tutti i dati')
     ),
-    h('p', { class: 'hint' }, `Movimenti: ${state.transactions.length} · Strumenti: ${state.assets.length} · Operazioni: ${state.ops.length}`)
+    h('p', { class: 'hint' }, `Movimenti salvati: ${state.transactions.length}`)
   ));
 
   root.append(h('p', { class: 'muted pad small center' }, 'Gestionale · i dati restano su questo dispositivo'));
   return root;
 }
 
-function editAccount(ctx, acc) {
-  openSheet(({ close }) => {
-    let name = acc?.name || '';
-    let initial = acc ? centsToInput(acc.initial || 0) : '';
-    return h('form', {
-      class: 'form',
-      onsubmit: async (e) => {
-        e.preventDefault();
-        if (!name.trim()) return toast('Inserisci un nome', 'error');
-        const cents = initial.trim() ? parseEuro(initial) : 0;
-        if (isNaN(cents)) return toast('Saldo non valido', 'error');
-        await saveAccount({ ...(acc || {}), name: name.trim(), initial: cents });
-        toast('Conto salvato'); close(); ctx.refresh();
-      }
-    },
-      field('Nome', h('input', { class: 'input', value: name, placeholder: 'Es. Revolut, Carta, Contanti', oninput: (e) => (name = e.target.value) })),
-      field('Saldo iniziale (€)', h('input', { class: 'input', inputmode: 'decimal', value: initial, placeholder: '0,00', oninput: (e) => (initial = e.target.value) }),
-        'Quanto c’era sul conto quando hai iniziato a usare l’app. Il saldo attuale si calcola da qui.'),
-      h('div', { class: 'form-actions' },
-        acc ? h('button', {
-          type: 'button', class: 'btn danger ghost',
-          onclick: async () => {
-            if (state.accounts.length <= 1) return toast('Serve almeno un conto', 'error');
-            if (!(await confirmDialog(`Eliminare il conto "${acc.name}"?`, { ok: 'Elimina', danger: true }))) return;
-            try { await deleteAccount(acc.id); toast('Conto eliminato'); close(); ctx.refresh(); }
-            catch (err) { toast(err.message, 'error'); }
-          }
-        }, 'Elimina') : null,
-        h('button', { type: 'submit', class: 'btn primary grow' }, 'Salva'))
-    );
-  }, { title: acc ? 'Modifica conto' : 'Nuovo conto' });
-}
-
-const EMOJIS = ['🛒', '🍽️', '☕', '🚇', '⛽', '🏠', '💡', '💊', '📺', '🛍️', '🎉', '💪', '✈️', '📚', '🏦', '🐶', '👶', '🎁', '💼', '💶', '↩️', '📦', '🧾', '🎮', '🍺', '💈', '🚗', '📱'];
+const EMOJIS = ['📈', '🪙', '🛒', '🍽️', '☕', '🚇', '⛽', '🏠', '💡', '💊', '📺', '🛍️', '🎉', '💪', '✈️', '📚', '🏦', '🐶', '👶', '🎁', '💼', '💶', '↩️', '📦', '🧾', '🎮', '🍺', '💈', '🚗', '📱'];
 
 function editCategory(ctx, cat, defaultKind = 'spesa') {
   const f = {
@@ -151,7 +109,7 @@ function editCategory(ctx, cat, defaultKind = 'spesa') {
         toast('Categoria salvata'); finish(); ctx.refresh();
       }
     },
-      cat ? null : segmented([['spesa', 'Spesa'], ['entrata', 'Entrata']], f.kind, (v) => { f.kind = v; render(); }),
+      cat ? null : segmented(KINDS.map((k) => [k, KIND_LABEL[k]]), f.kind, (v) => { f.kind = v; render(); }),
       field('Nome', h('input', { class: 'input', value: f.name, oninput: (e) => (f.name = e.target.value) })),
       h('div', { class: 'field' }, h('span', { class: 'label' }, 'Icona'),
         h('div', { class: 'emoji-grid' }, EMOJIS.map((em) => h('button', { type: 'button', class: em === f.emoji ? 'active' : '', onclick: () => { f.emoji = em; render(); } }, em)))),

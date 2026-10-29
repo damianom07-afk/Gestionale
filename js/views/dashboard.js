@@ -1,7 +1,11 @@
-import { state, monthSummary, expensesByCategory, lastMonths, totalLiquidity, portfolio, shiftMonth, monthKey, todayISO, loadDemoData } from '../model.js';
-import { h, eur, eurD, bigMoney, pct, monthLabel, sectionTitle } from '../ui.js';
+import {
+  state, monthSummary, expensesByCategory, lastMonths, liquidityAtMonthEnd, targetStatus,
+  investedInYear, shiftMonth, monthKey, todayISO, loadDemoData
+} from '../model.js';
+import { h, eur, bigMoney, monthLabel, sectionTitle } from '../ui.js';
 import { donut, monthBars } from '../charts.js';
 import { txRow } from './movements.js';
+import { liquidityCard } from './accounts.js';
 
 export function renderDashboard(ctx) {
   const s = monthSummary(ctx.month);
@@ -30,37 +34,40 @@ export function renderDashboard(ctx) {
       h('strong', {}, 'Esporta →')));
   }
 
-  // --- Card principale (gialla)
+  // --- Card principale (gialla): entrate − spese − investito
+  const goTo = (kind) => () => { ctx.filters = { ...ctx.filters, kind, category: '', query: '', allMonths: false }; ctx.go('movimenti'); };
   root.append(h('section', { class: 'hero-card' },
     h('p', { class: 'eyebrow dark' }, 'Saldo del mese'),
     h('div', { class: 'hero-amount' }, bigMoney(s.net, { sign: true })),
+    h('p', { class: 'hero-formula' }, 'entrate − spese − investito'),
     h('div', { class: 'hero-split' },
-      h('div', {}, h('span', { class: 'eyebrow dark' }, 'Entrate'), h('strong', {}, eur(s.income))),
-      h('div', {}, h('span', { class: 'eyebrow dark' }, 'Spese'), h('strong', {}, eur(s.expense))),
-      h('div', {}, h('span', { class: 'eyebrow dark' }, 'Risparmio'), h('strong', {}, s.savingRate === null ? '—' : pct(s.savingRate).replace('+', '')))
+      h('button', { onclick: goTo('entrata') }, h('span', { class: 'eyebrow dark' }, 'Entrate'), h('strong', {}, eur(s.income))),
+      h('button', { onclick: goTo('spesa') }, h('span', { class: 'eyebrow dark' }, 'Spese'), h('strong', {}, eur(s.expense))),
+      h('button', { onclick: goTo('investimento') }, h('span', { class: 'eyebrow dark' }, 'Investito'), h('strong', {}, eur(s.invested)))
     )
   ));
 
   // --- Primo avvio: niente dati
-  if (state.transactions.length === 0 && state.assets.length === 0) {
+  if (state.transactions.length === 0) {
     root.append(h('section', { class: 'card onboarding' },
       h('h2', {}, 'Inizia da qui'),
-      h('p', { class: 'muted' }, 'Aggiungi la tua prima spesa con il tasto giallo +, oppure carica dei dati di esempio per vedere come funziona. Potrai cancellarli da Impostazioni.'),
-      h('div', { class: 'row gap' },
-        h('button', { class: 'btn primary', onclick: () => ctx.add('spesa') }, 'Aggiungi spesa'),
+      h('p', { class: 'muted' }, 'Imposta i saldi dei tuoi conti e la liquidità obiettivo nella sezione Conti, poi aggiungi spese, entrate e investimenti con il tasto giallo +. Oppure carica dei dati di esempio per vedere come funziona (li cancelli da Impostazioni).'),
+      h('div', { class: 'row gap wrap' },
+        h('button', { class: 'btn primary', onclick: () => ctx.go('conti') }, 'Imposta i conti'),
         h('button', { class: 'btn ghost', onclick: async () => { await loadDemoData(); ctx.refresh(); } }, 'Dati di esempio')
       )
     ));
     return root;
   }
 
-  // --- Patrimonio
-  const pf = portfolio();
-  const liquidity = totalLiquidity();
-  root.append(h('section', { class: 'tiles' },
-    h('div', { class: 'tile' }, h('span', { class: 'eyebrow' }, 'Liquidità'), h('strong', {}, eur(liquidity))),
-    h('div', { class: 'tile' }, h('span', { class: 'eyebrow' }, 'Patrimonio'), h('strong', {}, eur(liquidity + Math.round(pf.value * 100))))
-  ));
+  // --- Liquidità rispetto all'obiettivo
+  const liquidity = liquidityAtMonthEnd(ctx.month);
+  root.append(liquidityCard(ctx, {
+    liquidity,
+    status: targetStatus(liquidity),
+    label: isCurrent ? 'Liquidità oggi' : `Liquidità a fine ${monthLabel(ctx.month).split(' ')[0]}`,
+    onclick: () => ctx.go('conti')
+  }));
 
   // --- Spese per categoria
   const byCat = expensesByCategory(ctx.month);
@@ -69,7 +76,7 @@ export function renderDashboard(ctx) {
     root.append(h('p', { class: 'muted pad' }, 'Nessuna spesa in questo mese.'));
   } else {
     const top = byCat.slice(0, 6);
-    const rest = byCat.slice(6).reduce((s, x) => s + x.amount, 0);
+    const rest = byCat.slice(6).reduce((sum, x) => sum + x.amount, 0);
     const items = top.map((x) => ({ value: x.amount, color: x.category.color }));
     if (rest) items.push({ value: rest, color: '#444' });
     const legend = h('ul', { class: 'legend' },
@@ -92,27 +99,22 @@ export function renderDashboard(ctx) {
   // --- Andamento ultimi 6 mesi
   root.append(sectionTitle('Ultimi 6 mesi', h('div', { class: 'key' },
     h('span', {}, h('i', { class: 'lemon' }), 'Entrate'),
-    h('span', {}, h('i', { class: 'white' }), 'Spese'))));
+    h('span', {}, h('i', { class: 'white' }), 'Spese'),
+    h('span', {}, h('i', { class: 'lav' }), 'Investito'))));
   root.append(h('section', { class: 'card' }, monthBars(lastMonths(ctx.month, 6))));
 
-  // --- Investimenti (card viola)
-  if (state.assets.length) {
-    root.append(h('button', { class: 'lav-card', onclick: () => ctx.go('investimenti') },
-      h('div', {},
-        h('p', { class: 'eyebrow dark' }, 'Investimenti'),
-        h('div', { class: 'lav-amount' }, bigMoney(Math.round(pf.value * 100)))
-      ),
-      h('div', { class: 'lav-side' },
-        h('span', { class: 'eyebrow dark' }, 'Rendimento'),
-        h('strong', {}, pct(pf.pct)),
-        h('span', { class: 'small' }, (pf.unrealized >= 0 ? '+' : '') + eurD(pf.unrealized))
-      )
-    ));
-  } else {
-    root.append(h('button', { class: 'lav-card slim', onclick: () => ctx.add('investimento') },
-      h('p', { class: 'eyebrow dark' }, 'Investimenti'),
-      h('strong', {}, 'Aggiungi il primo investimento →')));
-  }
+  // --- Investimenti (card viola): solo quanto hai destinato
+  const year = ctx.month.slice(0, 4);
+  root.append(h('button', { class: 'lav-card', onclick: goTo('investimento') },
+    h('div', {},
+      h('p', { class: 'eyebrow dark' }, 'Investito nel mese'),
+      h('div', { class: 'lav-amount' }, bigMoney(s.invested))
+    ),
+    h('div', { class: 'lav-side' },
+      h('span', { class: 'eyebrow dark' }, `Da inizio ${year}`),
+      h('strong', {}, eur(investedInYear(year)))
+    )
+  ));
 
   // --- Ultimi movimenti
   const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt).slice(0, 5);

@@ -1,4 +1,4 @@
-import { state, categoryById, accountById, categoriesOf, shiftMonth, monthKey, todayISO, normalize } from '../model.js';
+import { state, categoryById, accountById, categoriesOf, shiftMonth, monthKey, todayISO, normalize, signed } from '../model.js';
 import { h, eur, dayLabel, shortDate, monthLabel, segmented, empty } from '../ui.js';
 import { openEditor } from './editor.js';
 
@@ -44,7 +44,7 @@ export function renderMovements(ctx) {
     catOptions.map((c) => h('option', { value: c.id, selected: c.id === f.category }, `${c.emoji} ${c.name}`)));
 
   root.append(h('div', { class: 'filters' },
-    segmented([['tutti', 'Tutti'], ['spesa', 'Spese'], ['entrata', 'Entrate']], f.kind, (v) => set({ kind: v, category: '' })),
+    segmented([['tutti', 'Tutti'], ['spesa', 'Spese'], ['entrata', 'Entrate'], ['investimento', 'Investiti']], f.kind, (v) => set({ kind: v, category: '' })),
     h('div', { class: 'row gap' }, search, catSelect),
     !f.allMonths ? h('button', { class: 'link small', onclick: () => set({ allMonths: true }) }, 'Mostra tutti i mesi') : null
   ));
@@ -70,10 +70,12 @@ export function renderMovements(ctx) {
 
     const income = list.filter((t) => t.kind === 'entrata').reduce((s, t) => s + t.amount, 0);
     const expense = list.filter((t) => t.kind === 'spesa').reduce((s, t) => s + t.amount, 0);
+    const invested = list.filter((t) => t.kind === 'investimento').reduce((s, t) => s + t.amount, 0);
     const totals = h('div', { class: 'totals' },
       h('span', {}, `${list.length} movimenti`),
-      income ? h('span', { class: 'entrata' }, '+' + eur(income)) : null,
-      expense ? h('span', {}, '−' + eur(expense)) : null);
+      income ? h('span', { class: 'entrata' }, 'Entrate +' + eur(income)) : null,
+      expense ? h('span', {}, 'Spese −' + eur(expense)) : null,
+      invested ? h('span', { class: 'investimento' }, 'Investito −' + eur(invested)) : null);
 
     const groups = new Map();
     for (const t of list) {
@@ -81,7 +83,7 @@ export function renderMovements(ctx) {
       groups.get(t.date).push(t);
     }
     const blocks = [...groups.entries()].map(([date, items]) => {
-      const dayNet = items.reduce((s, t) => s + (t.kind === 'entrata' ? t.amount : -t.amount), 0);
+      const dayNet = items.reduce((s, t) => s + signed(t), 0);
       return h('section', { class: 'day' },
         h('div', { class: 'day-head' }, h('span', {}, dayLabel(date)), h('span', {}, (dayNet > 0 ? '+' : dayNet < 0 ? '−' : '') + eur(Math.abs(dayNet)))),
         h('div', { class: 'card list' }, items.map((t) => txRow(ctx, t)))

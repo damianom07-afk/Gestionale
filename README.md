@@ -1,20 +1,22 @@
 # Gestionale
 
-App personale per tenere traccia di **spese, entrate e investimenti**, pensata per iPhone.
+App personale per tenere traccia di **entrate, spese e investimenti**, pensata per iPhone.
 Gratuita, senza account, senza server: **i dati restano sul telefono**, con backup in Excel.
 
 Palette: Lemon `#FFF21A` · Charcoal `#171717` · Electric Lavender `#A66BFF`.
 
 ## Cosa fa
 
-- **Dashboard**: saldo del mese, entrate/spese/risparmio, liquidità e patrimonio, spese per categoria, andamento 6 mesi, investimenti, ultimi movimenti.
+- **Tre tipi di movimento**: entrata, spesa, investimento. L'investimento registra solo i soldi che *destini* agli investimenti: escono dalla liquidità ma non contano come spesa.
+- **Dashboard**: saldo del mese (*entrate − spese − investito*), liquidità rispetto all'obiettivo, spese per categoria, andamento 6 mesi, investito nel mese e da inizio anno, ultimi movimenti.
+- **Liquidità obiettivo** (tab Conti): imposti quanta liquidità vuoi tenere. Se sei sopra, l'app ti dice quanto puoi investire; se sei sotto, quanto manca. A regime, ogni mese entrate − spese − investito = 0.
 - **Movimenti**: lista per giorno, filtri per mese, tipo, categoria e ricerca. Tocca una riga per modificarla.
-- **Aggiungi (+)**: spesa, entrata o operazione d'investimento.
+- **Aggiungi (+)**: spesa, entrata o investimento.
   - **Scansiona**: foto dello scontrino o screenshot della banca → legge importo, data, esercente e propone la categoria (OCR gratuito sul telefono, Tesseract.js).
   - **Incolla testo**: copia il testo da una foto (Testo Live dell'iPhone) o da una notifica e incollalo.
   - La categoria si impara: ogni spesa salvata insegna all'app in che categoria va quell'esercente.
-- **Investimenti**: strumenti (ETF, azioni, crypto, depositi…), acquisti/vendite/dividendi, costo medio, valore e rendimento. Il prezzo attuale si aggiorna a mano.
-- **Impostazioni**: export/import Excel, conti, categorie (icona, colore, parole chiave), dati di esempio.
+- **Conti**: saldo di ogni conto (saldo iniziale + movimenti) e liquidità totale.
+- **Impostazioni**: export/import Excel (incluso l'obiettivo), categorie (icona, colore, parole chiave), dati di esempio.
 
 ## Provarla
 
@@ -53,7 +55,7 @@ js/xlsx.js            export/import Excel scritto a mano (un .xlsx è uno ZIP di
 js/scan.js            OCR e lettura scontrini
 js/charts.js          grafici SVG
 js/ui.js              componenti dell'interfaccia
-js/views/*.js         le schermate
+js/views/*.js         le schermate (dashboard, movimenti, editor, conti, impostazioni)
 ```
 
 Nessuna libreria da installare e nessuna build: sono file statici. Gli importi dei movimenti

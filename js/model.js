@@ -1,9 +1,20 @@
 // Il "cervello" dell'app: dati di partenza, salvataggi, calcoli.
-// Convenzione: gli importi dei movimenti sono in CENTESIMI (numeri interi) per evitare
-// errori di arrotondamento (0.1 + 0.2 != 0.3). Gli investimenti usano euro decimali
-// perché quantità e prezzi unitari possono avere molte cifre (es. crypto).
+// Convenzione: gli importi sono in CENTESIMI (numeri interi) per evitare
+// errori di arrotondamento (0.1 + 0.2 != 0.3).
+//
+// Tre tipi di movimento:
+//   'entrata'      soldi che arrivano
+//   'spesa'        soldi spesi
+//   'investimento' soldi che destini agli investimenti (escono dalla liquidità, ma non sono spese)
+//
+// Saldo del mese = entrate − spese − investito.
+// Con la liquidità all'obiettivo, l'ideale è un saldo del mese = 0.
 
 import * as db from './db.js';
+
+export const KINDS = ['spesa', 'entrata', 'investimento'];
+export const KIND_LABEL = { spesa: 'Spesa', entrata: 'Entrata', investimento: 'Investimento' };
+export const KIND_LABEL_PLURAL = { spesa: 'Spese', entrata: 'Entrate', investimento: 'Investimenti' };
 
 // ---------- Utilità ----------
 
@@ -13,8 +24,7 @@ export function uid() {
 }
 
 export function todayISO() {
-  const d = new Date();
-  return toISO(d);
+  return toISO(new Date());
 }
 
 export function toISO(d) {
@@ -28,8 +38,7 @@ export function monthKey(iso) {
 
 export function shiftMonth(key, delta) {
   const [y, m] = key.split('-').map(Number);
-  const d = new Date(y, m - 1 + delta, 1);
-  return toISO(d).slice(0, 7);
+  return toISO(new Date(y, m - 1 + delta, 1)).slice(0, 7);
 }
 
 /** Testo senza accenti, minuscolo, solo lettere e numeri separati da spazio. */
@@ -48,8 +57,6 @@ export const CATEGORY_COLORS = [
   '#FFF21A', '#A66BFF', '#F4F4F2', '#C9B2FF', '#FFF89A',
   '#7A3FE0', '#9A9A9A', '#D9CF00', '#E6DAFF', '#5E5E5E'
 ];
-
-export const ASSET_TYPES = ['ETF', 'Azioni', 'Obbligazioni', 'Fondi', 'Crypto', 'Conto deposito', 'Altro'];
 
 const DEFAULT_CATEGORIES = [
   // Spese
@@ -71,24 +78,21 @@ const DEFAULT_CATEGORIES = [
   ['entrata', '💼', 'Stipendio', 'stipendio, salario, emolumenti, busta paga'],
   ['entrata', '↩️', 'Rimborsi', 'rimborso, reso, storno'],
   ['entrata', '🎁', 'Regali', 'regalo'],
-  ['entrata', '💶', 'Altre entrate', '']
+  ['entrata', '💶', 'Altre entrate', ''],
+  // Investimenti
+  ['investimento', '📈', 'Investimenti', 'investimento, pac, etf, broker, directa, fineco, scalable, trade republic, degiro, moneyfarm']
 ];
 
-function defaultData() {
-  const categories = DEFAULT_CATEGORIES.map(([kind, emoji, name, kw], i) => ({
+function makeCategory([kind, emoji, name, kw], i) {
+  return {
     id: uid(),
     kind,
     emoji,
     name,
-    color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+    color: kind === 'investimento' ? '#A66BFF' : CATEGORY_COLORS[i % CATEGORY_COLORS.length],
     keywords: kw ? kw.split(',').map((k) => k.trim()).filter(Boolean) : [],
     order: i
-  }));
-  const accounts = [
-    { id: uid(), name: 'Conto corrente', initial: 0, order: 0 },
-    { id: uid(), name: 'Contanti', initial: 0, order: 1 }
-  ];
-  return { categories, accounts };
+  };
 }
 
 // ---------- Stato in memoria ----------
@@ -98,30 +102,38 @@ export const state = {
   accounts: [],
   categories: [],
   transactions: [],
-  assets: [],
-  ops: [],
   rules: [],
   meta: {}
 };
 
 export async function load() {
-  const [accounts, categories, transactions, assets, ops, rules, meta] = await Promise.all([
+  const [accounts, categories, transactions, rules, meta] = await Promise.all([
     db.getAll('accounts'), db.getAll('categories'), db.getAll('transactions'),
-    db.getAll('assets'), db.getAll('ops'), db.getAll('rules'), db.getAll('meta')
+    db.getAll('rules'), db.getAll('meta')
   ]);
-  if (categories.length === 0 && accounts.length === 0) {
-    const d = defaultData();
-    await db.bulkPut('categories', d.categories);
-    await db.bulkPut('accounts', d.accounts);
-    categories.push(...d.categories);
-    accounts.push(...d.accounts);
+  if (categories.length === 0) {
+    const cats = DEFAULT_CATEGORIES.map(makeCategory);
+    await db.bulkPut('categories', cats);
+    categories.push(...cats);
+  }
+  // Chi aveva già l'app prima degli investimenti semplificati: aggiungi la categoria mancante
+  if (!categories.some((c) => c.kind === 'investimento')) {
+    const c = makeCategory(DEFAULT_CATEGORIES[DEFAULT_CATEGORIES.length - 1], categories.length);
+    await db.put('categories', c);
+    categories.push(c);
+  }
+  if (accounts.length === 0) {
+    const accs = [
+      { id: uid(), name: 'Conto corrente', initial: 0, order: 0 },
+      { id: uid(), name: 'Contanti', initial: 0, order: 1 }
+    ];
+    await db.bulkPut('accounts', accs);
+    accounts.push(...accs);
   }
   Object.assign(state, {
     accounts: accounts.sort(byOrder),
     categories: categories.sort(byOrder),
     transactions,
-    assets,
-    ops,
     rules,
     meta: Object.fromEntries(meta.map((m) => [m.key, m.value]))
   });
@@ -133,33 +145,33 @@ function byOrder(a, b) {
 
 // ---------- Salvataggi ----------
 
-async function save(storeName, listName, obj) {
+async function save(storeName, obj) {
   await db.put(storeName, obj);
-  const list = state[listName];
+  const list = state[storeName];
   const key = storeName === 'rules' ? 'key' : 'id';
   const i = list.findIndex((x) => x[key] === obj[key]);
   if (i >= 0) list[i] = obj; else list.push(obj);
   return obj;
 }
 
-async function remove(storeName, listName, id) {
+async function remove(storeName, id) {
   await db.del(storeName, id);
   const key = storeName === 'rules' ? 'key' : 'id';
-  state[listName] = state[listName].filter((x) => x[key] !== id);
+  state[storeName] = state[storeName].filter((x) => x[key] !== id);
 }
 
-export const saveTransaction = (t) => save('transactions', 'transactions', { createdAt: Date.now(), ...t, id: t.id || uid() });
-export const deleteTransaction = (id) => remove('transactions', 'transactions', id);
+export const saveTransaction = (t) => save('transactions', { createdAt: Date.now(), ...t, id: t.id || uid() });
+export const deleteTransaction = (id) => remove('transactions', id);
 
-export const saveAccount = (a) => save('accounts', 'accounts', { order: state.accounts.length, ...a, id: a.id || uid() });
+export const saveAccount = (a) => save('accounts', { order: state.accounts.length, ...a, id: a.id || uid() });
 export async function deleteAccount(id) {
-  if (state.transactions.some((t) => t.accountId === id) || state.ops.some((o) => o.accountId === id)) {
+  if (state.transactions.some((t) => t.accountId === id)) {
     throw new Error('Il conto ha dei movimenti collegati: spostali o eliminali prima.');
   }
-  await remove('accounts', 'accounts', id);
+  await remove('accounts', id);
 }
 
-export const saveCategory = (c) => save('categories', 'categories', { order: state.categories.length, ...c, id: c.id || uid() });
+export const saveCategory = (c) => save('categories', { order: state.categories.length, ...c, id: c.id || uid() });
 export async function deleteCategory(id) {
   const cat = categoryById(id);
   if (!cat) return;
@@ -169,18 +181,10 @@ export async function deleteCategory(id) {
   for (const t of state.transactions.filter((t) => t.categoryId === id)) {
     await saveTransaction({ ...t, categoryId: fallback.id });
   }
-  for (const r of state.rules.filter((r) => r.categoryId === id)) await remove('rules', 'rules', r.key);
-  await remove('categories', 'categories', id);
+  for (const r of state.rules.filter((r) => r.categoryId === id)) await remove('rules', r.key);
+  await remove('categories', id);
   return fallback;
 }
-
-export const saveAsset = (a) => save('assets', 'assets', { ...a, id: a.id || uid() });
-export async function deleteAsset(id) {
-  for (const o of state.ops.filter((o) => o.assetId === id)) await remove('ops', 'ops', o.id);
-  await remove('assets', 'assets', id);
-}
-export const saveOp = (o) => save('ops', 'ops', { ...o, id: o.id || uid() });
-export const deleteOp = (id) => remove('ops', 'ops', id);
 
 export async function setMeta(key, value) {
   await db.put('meta', { key, value });
@@ -201,7 +205,6 @@ export async function wipeEverything() {
 
 export const categoryById = (id) => state.categories.find((c) => c.id === id);
 export const accountById = (id) => state.accounts.find((a) => a.id === id);
-export const assetById = (id) => state.assets.find((a) => a.id === id);
 export const categoriesOf = (kind) => state.categories.filter((c) => c.kind === kind);
 
 // ---------- Categoria automatica ----------
@@ -222,7 +225,7 @@ export function merchantKey(s) {
 }
 
 /**
- * Indovina la categoria di una spesa.
+ * Indovina la categoria.
  * 1) regole imparate dalle tue scelte passate (più affidabili)
  * 2) parole chiave delle categorie
  * Ritorna { categoryId, source } oppure null.
@@ -250,35 +253,40 @@ export function guessCategory({ merchant = '', text = '' }, kind = 'spesa') {
 export async function learnRule(merchant, categoryId) {
   const key = merchantKey(merchant);
   if (key.length < 3) return;
-  await save('rules', 'rules', { key, categoryId, updatedAt: Date.now() });
+  await save('rules', { key, categoryId, updatedAt: Date.now() });
 }
 
 export async function clearRules() {
-  for (const r of [...state.rules]) await remove('rules', 'rules', r.key);
+  for (const r of [...state.rules]) await remove('rules', r.key);
 }
 
 // ---------- Calcoli ----------
+
+const sum = (list) => list.reduce((s, t) => s + t.amount, 0);
+const ofKind = (list, kind) => list.filter((t) => t.kind === kind);
 
 export function txInMonth(key) {
   return state.transactions.filter((t) => monthKey(t.date) === key);
 }
 
+/** Effetto di un movimento sulla liquidità (centesimi, con segno). */
+export const signed = (t) => (t.kind === 'entrata' ? t.amount : -t.amount);
+
 export function monthSummary(key) {
   const list = txInMonth(key);
-  const income = sum(list.filter((t) => t.kind === 'entrata'));
-  const expense = sum(list.filter((t) => t.kind === 'spesa'));
-  const net = income - expense;
-  const savingRate = income > 0 ? net / income : null;
-  return { income, expense, net, savingRate, count: list.length };
+  const income = sum(ofKind(list, 'entrata'));
+  const expense = sum(ofKind(list, 'spesa'));
+  const invested = sum(ofKind(list, 'investimento'));
+  return { income, expense, invested, net: income - expense - invested, count: list.length };
 }
 
-function sum(list) {
-  return list.reduce((s, t) => s + t.amount, 0);
+export function investedInYear(year) {
+  return sum(state.transactions.filter((t) => t.kind === 'investimento' && t.date.startsWith(String(year))));
 }
 
 export function expensesByCategory(key) {
   const map = new Map();
-  for (const t of txInMonth(key).filter((t) => t.kind === 'spesa')) {
+  for (const t of ofKind(txInMonth(key), 'spesa')) {
     map.set(t.categoryId, (map.get(t.categoryId) || 0) + t.amount);
   }
   return [...map.entries()]
@@ -291,81 +299,45 @@ export function lastMonths(key, n = 6) {
   for (let i = n - 1; i >= 0; i--) {
     const k = shiftMonth(key, -i);
     const s = monthSummary(k);
-    out.push({ key: k, income: s.income, expense: s.expense });
+    out.push({ key: k, income: s.income, expense: s.expense, invested: s.invested });
   }
   return out;
 }
 
-/** Effetto di un'operazione d'investimento sul conto collegato, in centesimi. */
-export function opCashEffect(o) {
-  const fees = Number(o.fees) || 0;
-  if (o.kind === 'acquisto') return -Math.round((o.qty * o.price + fees) * 100);
-  if (o.kind === 'vendita') return Math.round((o.qty * o.price - fees) * 100);
-  if (o.kind === 'dividendo') return Math.round(((Number(o.amount) || 0) - fees) * 100);
-  return 0;
-}
-
-export function accountBalance(accountId) {
+export function accountBalance(accountId, upToDate = null) {
   const acc = accountById(accountId);
   let b = acc ? acc.initial || 0 : 0;
   for (const t of state.transactions) {
     if (t.accountId !== accountId) continue;
-    b += t.kind === 'entrata' ? t.amount : -t.amount;
+    if (upToDate && t.date > upToDate) continue;
+    b += signed(t);
   }
-  for (const o of state.ops) if (o.accountId === accountId) b += opCashEffect(o);
   return b;
 }
 
-export function totalLiquidity() {
-  return state.accounts.reduce((s, a) => s + accountBalance(a.id), 0);
+/** Liquidità totale (somma dei conti). Con upToDate = 'YYYY-MM-DD' calcola quella a quella data. */
+export function totalLiquidity(upToDate = null) {
+  return state.accounts.reduce((s, a) => s + accountBalance(a.id, upToDate), 0);
 }
+
+/** Liquidità a fine mese (o oggi, se è il mese in corso). */
+export function liquidityAtMonthEnd(key) {
+  const [y, m] = key.split('-').map(Number);
+  return totalLiquidity(toISO(new Date(y, m, 0)));
+}
+
+export const liquidityTarget = () => state.meta.liquidityTarget ?? null;
+export const setLiquidityTarget = (cents) => setMeta('liquidityTarget', cents);
 
 /**
- * Posizione su uno strumento con il metodo del costo medio ponderato.
- * Tutti i valori in euro (decimali).
+ * Confronto con l'obiettivo.
+ * gap > 0: sei sopra l'obiettivo (quella cifra puoi investirla)
+ * gap < 0: sei sotto (quella cifra va recuperata)
  */
-export function assetPosition(asset) {
-  const ops = state.ops.filter((o) => o.assetId === asset.id).sort((a, b) => a.date.localeCompare(b.date));
-  let qty = 0, cost = 0, realized = 0, dividends = 0;
-  for (const o of ops) {
-    const fees = Number(o.fees) || 0;
-    if (o.kind === 'acquisto') {
-      qty += o.qty;
-      cost += o.qty * o.price + fees;
-    } else if (o.kind === 'vendita') {
-      const avg = qty > 0 ? cost / qty : 0;
-      const q = Math.min(o.qty, qty);
-      cost -= avg * q;
-      qty -= q;
-      realized += q * o.price - fees - avg * q;
-    } else if (o.kind === 'dividendo') {
-      dividends += (Number(o.amount) || 0) - fees;
-    }
-  }
-  if (Math.abs(qty) < 1e-9) { qty = 0; cost = 0; }
-  const value = qty * (asset.price || 0);
-  const unrealized = value - cost;
-  return {
-    qty, cost, value, unrealized, realized, dividends,
-    avgPrice: qty > 0 ? cost / qty : 0,
-    pct: cost > 0 ? unrealized / cost : null,
-    ops
-  };
-}
-
-export function portfolio() {
-  const rows = state.assets.map((a) => ({ asset: a, ...assetPosition(a) }));
-  const value = rows.reduce((s, r) => s + r.value, 0);
-  const cost = rows.reduce((s, r) => s + r.cost, 0);
-  const realized = rows.reduce((s, r) => s + r.realized, 0);
-  const dividends = rows.reduce((s, r) => s + r.dividends, 0);
-  return {
-    rows: rows.sort((a, b) => b.value - a.value),
-    value, cost,
-    unrealized: value - cost,
-    pct: cost > 0 ? (value - cost) / cost : null,
-    realized, dividends
-  };
+export function targetStatus(liquidity) {
+  const target = liquidityTarget();
+  if (target === null) return null;
+  return { target, gap: liquidity - target, ratio: target > 0 ? liquidity / target : 1 };
 }
 
 // ---------- Dati di esempio (per provare l'app) ----------
@@ -386,6 +358,7 @@ export async function loadDemoData() {
     const limit = m === 0 ? now.getDate() : 31;
     const ok = (d) => d <= limit;
     if (ok(27)) add('entrata', 1850, day(27), 'Stipendio', 'Stipendio');
+    if (ok(28)) add('investimento', m % 2 ? 300 : 450, day(28), 'Investimenti', 'PAC mensile');
     if (ok(2)) add('spesa', 650, day(2), 'Casa & bollette', 'Affitto');
     if (ok(12)) add('spesa', rnd(45, 90), day(12), 'Casa & bollette', 'A2A luce e gas');
     if (ok(5)) add('spesa', 39, day(5), 'Trasporti', 'ATM abbonamento');
@@ -398,17 +371,8 @@ export async function loadDemoData() {
     if (ok(9) && m % 3 === 0) add('entrata', rnd(40, 150), day(9), 'Rimborsi', 'Rimborso spese');
   }
   await db.bulkPut('transactions', tx);
-
-  const etf = { id: uid(), name: 'Vanguard FTSE All-World', type: 'ETF', price: 128.4, priceDate: todayISO() };
-  const btc = { id: uid(), name: 'Bitcoin', type: 'Crypto', price: 61250, priceDate: todayISO() };
-  await db.bulkPut('assets', [etf, btc]);
-  const ops = [];
-  for (let m = 5; m >= 1; m--) {
-    ops.push({ id: uid(), assetId: etf.id, kind: 'acquisto', date: toISO(new Date(now.getFullYear(), now.getMonth() - m, 28)), qty: 2, price: rnd(115, 126), fees: 1, accountId: acc, note: 'PAC mensile' });
-  }
-  ops.push({ id: uid(), assetId: btc.id, kind: 'acquisto', date: toISO(new Date(now.getFullYear(), now.getMonth() - 4, 10)), qty: 0.005, price: 55400, fees: 2, accountId: acc, note: '' });
-  await db.bulkPut('ops', ops);
   await db.put('accounts', { ...state.accounts[0], initial: 250000 });
   await db.put('accounts', { ...state.accounts[1], initial: 15000 });
+  await db.put('meta', { key: 'liquidityTarget', value: 300000 });
   await load();
 }
