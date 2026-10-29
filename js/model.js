@@ -342,7 +342,56 @@ export function targetStatus(liquidity) {
   return { target, gap: liquidity - target, ratio: target > 0 ? liquidity / target : 1 };
 }
 
-// ---------- Dati di esempio (per provare l'app) ----------
+// ---------- Dati di esempio (archivio separato) ----------
+
+const MODE_KEY = 'gestionale-mode';
+
+export function isDemo() {
+  try { return localStorage.getItem(MODE_KEY) === 'demo'; } catch { return false; }
+}
+
+/** Da chiamare all'avvio, prima di load(). */
+export async function openCurrentDatabase() {
+  await db.useDatabase(isDemo() ? db.DEMO_DB : db.REAL_DB);
+}
+
+export async function enterDemo() {
+  try { localStorage.setItem(MODE_KEY, 'demo'); } catch { /* ignore */ }
+  await db.useDatabase(db.REAL_DB);
+  await db.useDatabase(db.DEMO_DB);
+  await db.replaceAll({});
+  await load();
+  await loadDemoData();
+}
+
+export async function exitDemo() {
+  try { localStorage.setItem(MODE_KEY, 'real'); } catch { /* ignore */ }
+  await db.useDatabase(db.REAL_DB);
+  await load();
+  await db.deleteDatabase(db.DEMO_DB);
+}
+
+const DEMO_NOTES = new Set(['Stipendio', 'PAC mensile', 'Affitto', 'A2A luce e gas', 'ATM abbonamento', 'Netflix', 'Spotify',
+  'Esselunga', 'Conad', 'Pizzeria', 'Bar', 'Amazon', 'Cinema e cena', 'Rimborso spese']);
+
+/** Movimenti di esempio finiti per errore fra i tuoi (caricati tutti insieme nello stesso istante). */
+export function strayDemoTransactions() {
+  const flagged = state.transactions.filter((t) => t.demo);
+  const candidates = state.transactions.filter((t) => !t.demo && DEMO_NOTES.has(t.note)).sort((a, b) => a.createdAt - b.createdAt);
+  let best = [];
+  for (let i = 0; i < candidates.length; i++) {
+    const group = candidates.filter((t) => t.createdAt >= candidates[i].createdAt && t.createdAt - candidates[i].createdAt < 3000);
+    if (group.length > best.length) best = group;
+  }
+  return flagged.concat(best.length >= 20 ? best : []);
+}
+
+export async function removeStrayDemo() {
+  const list = strayDemoTransactions();
+  for (const t of list) await remove('transactions', t.id);
+  return list.length;
+}
+
 
 export async function loadDemoData() {
   const cat = (name) => state.categories.find((c) => c.name === name)?.id;
@@ -351,7 +400,7 @@ export async function loadDemoData() {
   const now = new Date();
   const tx = [];
   const add = (kind, euros, d, catName, note, accountId = acc) =>
-    tx.push({ id: uid(), kind, amount: Math.round(euros * 100), date: toISO(d), categoryId: cat(catName), accountId, note, createdAt: Date.now() });
+    tx.push({ id: uid(), kind, amount: Math.round(euros * 100), date: toISO(d), categoryId: cat(catName), accountId, note, createdAt: Date.now(), demo: true });
   const rnd = (a, b) => Math.round((a + Math.random() * (b - a)) * 100) / 100;
 
   for (let m = 5; m >= 0; m--) {

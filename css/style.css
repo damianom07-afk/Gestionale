@@ -143,6 +143,11 @@ h1, h2, h3, p { margin: 0; }
 .switch:checked::after { transform: translateX(20px); background: var(--char); }
 .muted-list .tx-amount { color: var(--muted); }
 
+/* ---------- Modalità esempio ---------- */
+.demo-banner { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--lav); color: var(--char);
+  border-radius: 14px; padding: 10px 14px; margin-bottom: 12px; font-size: 14px; font-weight: 700; }
+.demo-banner button { font-weight: 800; text-decoration: underline; white-space: nowrap; }
+
 /* ---------- Card generiche ---------- */
 .card { background: var(--surface); border-radius: var(--radius); padding: 14px; }
 .card.list { padding: 4px 0; }

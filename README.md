@@ -17,7 +17,7 @@ Palette: Lemon `#FFF21A` · Charcoal `#171717` · Electric Lavender `#A66BFF`.
   - La categoria si impara: ogni spesa salvata insegna all'app in che categoria va quell'esercente.
 - **Riepilogo**: tutto lo storico per periodo (mese, 3 mesi, 6 mesi, anno, tutto): totali e confronto col periodo precedente, medie mensili, quota di entrate non spese e investite, andamento della liquidità rispetto all'obiettivo, spese per categoria, spese più grandi e tabella mese per mese.
 - **Conti**: saldo di ogni conto (saldo iniziale + movimenti) e liquidità totale. Ogni conto ha l'interruttore *Conta nella liquidità* (es. buoni pasto esclusi). L'app ricorda anche il conto usato per ogni esercente.
-- **Impostazioni**: export/import Excel (incluso l'obiettivo), categorie (icona, colore, parole chiave), dati di esempio.
+- **Impostazioni**: export/import Excel (incluso l'obiettivo), categorie (icona, colore, parole chiave), prova con dati di esempio in un archivio separato (i tuoi dati restano intatti).
 
 ## Provarla
 

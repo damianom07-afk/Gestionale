@@ -1,6 +1,6 @@
 import {
   state, monthSummary, expensesByCategory, lastMonths, liquidityAtMonthEnd, targetStatus,
-  investedInYear, shiftMonth, monthKey, todayISO, loadDemoData
+  investedInYear, shiftMonth, monthKey, todayISO, isDemo
 } from '../model.js';
 import { h, eur, bigMoney, monthLabel, sectionTitle } from '../ui.js';
 import { donut, monthBars } from '../charts.js';
@@ -28,7 +28,7 @@ export function renderDashboard(ctx) {
   // --- Promemoria backup
   const last = state.meta.lastExport;
   const days = last ? Math.floor((Date.now() - new Date(last).getTime()) / 864e5) : null;
-  if (state.transactions.length > 0 && (days === null || days > 30)) {
+  if (!isDemo() && state.transactions.length > 0 && (days === null || days > 30)) {
     root.append(h('button', { class: 'banner', onclick: () => ctx.go('impostazioni') },
       h('span', {}, days === null ? 'Non hai ancora fatto un backup Excel.' : `Ultimo backup ${days} giorni fa.`),
       h('strong', {}, 'Esporta →')));
@@ -53,7 +53,7 @@ export function renderDashboard(ctx) {
       h('p', { class: 'muted' }, 'Imposta i conti, poi aggiungi i movimenti con il +.'),
       h('div', { class: 'row gap wrap' },
         h('button', { class: 'btn primary', onclick: () => ctx.go('conti') }, 'Imposta i conti'),
-        h('button', { class: 'btn ghost', onclick: async () => { await loadDemoData(); ctx.refresh(); } }, 'Dati di esempio')
+        isDemo() ? null : h('button', { class: 'btn ghost', onclick: () => ctx.enterDemo() }, 'Dati di esempio')
       )
     ));
     return root;

@@ -1,6 +1,6 @@
 import {
   state, saveCategory, deleteCategory, categoriesOf, KINDS, KIND_LABEL, KIND_LABEL_PLURAL,
-  wipeEverything, loadDemoData, clearRules, CATEGORY_COLORS
+  wipeEverything, clearRules, CATEGORY_COLORS, isDemo, strayDemoTransactions, removeStrayDemo
 } from '../model.js';
 import { downloadBackup, importWorkbook } from '../xlsx.js';
 import { h, shortDate, openSheet, field, toast, confirmDialog, pickFile, sectionTitle, segmented } from '../ui.js';
@@ -68,7 +68,17 @@ export function renderSettings(ctx) {
   root.append(sectionTitle('Dati'));
   root.append(h('section', { class: 'card pad-card' },
     h('div', { class: 'row gap wrap' },
-      state.transactions.length === 0 ? h('button', { class: 'btn ghost', onclick: async () => { await loadDemoData(); toast('Dati di esempio caricati'); ctx.go('home'); } }, 'Carica dati di esempio') : null,
+      isDemo()
+        ? h('button', { class: 'btn primary', onclick: () => ctx.exitDemo() }, 'Torna ai tuoi dati')
+        : h('button', { class: 'btn ghost', onclick: () => ctx.enterDemo() }, 'Prova con dati di esempio'),
+      !isDemo() && strayDemoTransactions().length ? h('button', {
+        class: 'btn ghost',
+        onclick: async () => {
+          const n = strayDemoTransactions().length;
+          if (!(await confirmDialog(`Eliminare ${n} movimenti di esempio dai tuoi dati?`, { ok: 'Elimina', danger: true }))) return;
+          await removeStrayDemo(); toast('Dati di esempio rimossi'); ctx.refresh();
+        }
+      }, `Rimuovi dati di esempio (${strayDemoTransactions().length})`) : null,
       h('button', {
         class: 'btn danger ghost',
         onclick: async () => {

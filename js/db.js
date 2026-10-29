@@ -1,7 +1,10 @@
 // Piccolo strato sopra IndexedDB, il database interno del browser.
 // I dati restano sul dispositivo: nessun server, nessun account.
 
-const DB_NAME = 'gestionale';
+// Due archivi separati: i tuoi dati e quelli di esempio
+export const REAL_DB = 'gestionale';
+export const DEMO_DB = 'gestionale-demo';
+let DB_NAME = REAL_DB;
 const DB_VERSION = 1;
 
 // nome tabella -> campo chiave
@@ -16,6 +19,21 @@ export const STORES = {
 };
 
 let dbPromise;
+
+/** Passa a un altro archivio (chiude quello aperto). */
+export async function useDatabase(name) {
+  if (name === DB_NAME && dbPromise) return;
+  if (dbPromise) { try { (await dbPromise).close(); } catch { /* già chiuso */ } }
+  DB_NAME = name;
+  dbPromise = null;
+}
+
+export async function deleteDatabase(name) {
+  return new Promise((resolve) => {
+    const req = indexedDB.deleteDatabase(name);
+    req.onsuccess = req.onerror = req.onblocked = () => resolve();
+  });
+}
 
 function open() {
   if (dbPromise) return dbPromise;

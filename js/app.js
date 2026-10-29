@@ -1,5 +1,5 @@
 // Punto di partenza: carica i dati, disegna la barra in basso e la schermata attiva.
-import { load, todayISO, monthKey } from './model.js';
+import { load, todayISO, monthKey, isDemo, openCurrentDatabase, enterDemo, exitDemo } from './model.js';
 import { requestPersistence } from './db.js';
 import { h, svg } from './ui.js';
 import { renderDashboard } from './views/dashboard.js';
@@ -40,7 +40,7 @@ const ctx = {
   refresh(scrollTop = false) {
     const view = document.getElementById('view');
     const y = window.scrollY;
-    view.replaceChildren(TABS[ctx.tab].render(ctx));
+    view.replaceChildren(...(isDemo() ? [demoBanner()] : []), TABS[ctx.tab].render(ctx));
     renderNav();
     window.scrollTo(0, scrollTop ? 0 : y);
   },
@@ -48,10 +48,26 @@ const ctx = {
   settingsButton() {
     return h('button', { class: 'icon-btn gear', 'aria-label': 'Impostazioni', onclick: () => ctx.go('impostazioni') }, svg(ICONS.settings));
   },
+  async enterDemo() {
+    await enterDemo();
+    ctx.month = monthKey(todayISO());
+    ctx.go('home');
+  },
+  async exitDemo() {
+    await exitDemo();
+    ctx.month = monthKey(todayISO());
+    ctx.go('home');
+  },
   add(kind = 'spesa', extra = {}) {
     openEditor(ctx, { kind, ...extra });
   }
 };
+
+function demoBanner() {
+  return h('div', { class: 'demo-banner' },
+    h('span', {}, 'Dati di esempio'),
+    h('button', { onclick: () => ctx.exitDemo() }, 'Torna ai tuoi dati →'));
+}
 
 function renderNav() {
   const nav = document.getElementById('nav');
@@ -71,6 +87,7 @@ function renderNav() {
 
 async function start() {
   try {
+    await openCurrentDatabase();
     await load();
   } catch (e) {
     document.getElementById('view').replaceChildren(
