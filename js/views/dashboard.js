@@ -15,7 +15,7 @@ export function renderDashboard(ctx) {
   // --- Intestazione con selettore del mese
   root.append(h('header', { class: 'top' },
     h('div', {},
-      h('p', { class: 'eyebrow' }, 'Gestionale'),
+      h('div', { class: 'brand-row' }, h('p', { class: 'eyebrow' }, 'Gestionale'), ctx.settingsButton()),
       h('h1', { class: 'display' }, 'Ciao.')
     ),
     h('div', { class: 'month-switch' },

@@ -87,6 +87,54 @@ h1, h2, h3, p { margin: 0; }
 .between { justify-content: space-between; align-items: center; }
 .big-num { font-size: 22px; font-weight: 900; }
 
+/* ---------- Riepilogo ---------- */
+.brand-row { display: flex; align-items: center; gap: 6px; }
+.icon-btn.gear { width: 30px; height: 30px; color: var(--muted); }
+.icon-btn.gear svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.segmented.period button { font-size: 13px; padding: 9px 2px; }
+.period-nav { display: grid; grid-template-columns: 36px 1fr 36px; align-items: center; }
+.period-label { display: flex; flex-direction: column; align-items: center; gap: 2px; text-transform: capitalize; }
+.period-label strong { font-size: 18px; font-weight: 800; }
+.period-label small { font-size: 12px; color: var(--muted); text-transform: none; }
+.hero-note { font-size: 11px; color: rgba(23, 23, 23, .6); margin-top: 8px; }
+.delta { font-size: 11px; font-weight: 700; }
+.hero-card .delta.good { color: #2E7D32; }
+.hero-card .delta.bad { color: #B3261E; }
+.hero-card .delta.neutral, .hero-card .delta { color: rgba(23, 23, 23, .65); }
+.card .delta.good { color: var(--lemon); }
+.card .delta.bad { color: var(--danger); }
+.kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.kpis .tile strong { font-size: 19px; }
+.kpis .tile strong.lav { color: var(--lav); }
+.kpis .tile small { font-size: 12px; }
+.liq-range { display: flex; flex-direction: column; gap: 12px; }
+.liq-flow { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.liq-flow > div { display: flex; flex-direction: column; gap: 4px; }
+.liq-flow strong { font-size: 17px; font-weight: 800; }
+.liq-flow .arrow { color: var(--muted); font-size: 18px; padding-bottom: 2px; }
+.liq-flow .right { margin-left: auto; align-items: flex-end; }
+.bars .axis.target { fill: var(--lav); text-transform: none; }
+.cat-bars { display: flex; flex-direction: column; gap: 2px; padding: 8px 14px; }
+.cat-bar { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; text-align: left; width: 100%; }
+.cat-bar + .cat-bar { border-top: 1px solid var(--line); }
+.cat-bar-top { display: flex; justify-content: space-between; font-size: 15px; font-weight: 600; }
+.cat-bar-track { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.cat-bar-track i { display: block; height: 100%; border-radius: 4px; }
+.cat-bar-sub { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+.tx-row.static:active { background: none; }
+.month-row { display: flex; flex-direction: column; gap: 6px; width: 100%; text-align: left; padding: 12px 14px; }
+.month-row + .month-row { border-top: 1px solid var(--line); }
+.month-row:active { background: var(--surface-2); }
+.month-row-head { display: flex; justify-content: space-between; align-items: baseline; }
+.month-row-head strong { font-size: 15px; font-weight: 700; text-transform: capitalize; }
+.month-row-head .net { font-weight: 800; font-size: 16px; }
+.month-row-head .net.pos { color: var(--lemon); }
+.month-row-head .net.neg { color: var(--danger); }
+.month-row-sub { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.month-row-sub .entrata { color: var(--lemon); }
+.month-row-sub .investimento { color: var(--lav); }
+.month-row-sub .liq { margin-left: auto; }
+
 /* ---------- Card generiche ---------- */
 .card { background: var(--surface); border-radius: var(--radius); padding: 14px; }
 .card.list { padding: 4px 0; }

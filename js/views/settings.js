@@ -7,7 +7,7 @@ import { h, shortDate, openSheet, field, toast, confirmDialog, pickFile, section
 
 export function renderSettings(ctx) {
   const root = h('div', { class: 'page' });
-  root.append(h('header', { class: 'top' }, h('h1', { class: 'display sm' }, 'Impostazioni')));
+  root.append(h('header', { class: 'top' }, h('h1', { class: 'display sm' }, 'Impostazioni'), h('button', { class: 'btn ghost small', onclick: () => ctx.go('home') }, '← Home')));
 
   // --- Backup Excel
   const last = state.meta.lastExport;

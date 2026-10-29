@@ -38,13 +38,15 @@ export function monthBars(data, { height = 170 } = {}) {
   };
   const bars = data.map((d, i) => {
     const x = i * slot + slot / 2;
-    const m = Number(d.key.slice(5)) - 1;
+    const label = d.label ?? MONTHS_SHORT[Number(d.key.slice(5)) - 1];
     const last = i === data.length - 1;
+    const every = Math.ceil(data.length / 12); // con tanti mesi mostro un'etichetta ogni N
+    const showLabel = (data.length - 1 - i) % every === 0;
     const left = x - bw * 1.5 - gap;
     return bar(left, d.income, 'var(--lemon)', 'Entrate') +
       bar(left + bw + gap, d.expense, 'var(--text)', 'Spese', last ? 1 : 0.6) +
       bar(left + 2 * (bw + gap), d.invested || 0, 'var(--lav)', 'Investito') +
-      `<text x="${x}" y="${height - 6}" text-anchor="middle" class="axis${last ? ' current' : ''}">${MONTHS_SHORT[m]}</text>`;
+      (showLabel ? `<text x="${x}" y="${height - 6}" text-anchor="middle" class="axis${last ? ' current' : ''}">${label}</text>` : '');
   }).join('');
   return svg(`<svg class="bars" viewBox="0 0 ${w} ${height}" preserveAspectRatio="none" role="img">
     <line x1="0" x2="${w}" y1="${padT + ch + 0.5}" y2="${padT + ch + 0.5}" stroke="var(--line)"/>
@@ -63,4 +65,38 @@ export function stackBar(items) {
     return r;
   }).join('');
   return svg(`<svg class="stackbar" width="100%" height="12">${parts}</svg>`);
+}
+
+/**
+ * Linea dell'andamento (es. liquidità a fine mese), con eventuale linea tratteggiata dell'obiettivo.
+ * points = [{ label, value }] in centesimi; target in centesimi o null
+ */
+export function lineChart(points, { target = null, height = 170 } = {}) {
+  const w = 340, padB = 26, padT = 16, padX = 8;
+  const values = points.map((p) => p.value).concat(target !== null ? [target] : []);
+  let min = Math.min(...values), max = Math.max(...values);
+  if (min === max) { min -= 100; max += 100; }
+  const span = max - min;
+  min -= span * 0.12; max += span * 0.12;
+  const ch = height - padB - padT;
+  const X = (i) => padX + (points.length === 1 ? (w - 2 * padX) / 2 : (i / (points.length - 1)) * (w - 2 * padX));
+  const Y = (v) => padT + ch - ((v - min) / (max - min)) * ch;
+  const path = points.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(p.value).toFixed(1)}`).join(' ');
+  const area = `${path} L${X(points.length - 1).toFixed(1)},${padT + ch} L${X(0).toFixed(1)},${padT + ch} Z`;
+  const every = Math.ceil(points.length / 12);
+  const labels = points.map((p, i) => ((points.length - 1 - i) % every === 0
+    ? `<text x="${X(i)}" y="${height - 6}" text-anchor="${i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle'}" class="axis${i === points.length - 1 ? ' current' : ''}">${p.label}</text>` : '')).join('');
+  const dots = points.map((p, i) => `<circle cx="${X(i)}" cy="${Y(p.value)}" r="${i === points.length - 1 ? 4.5 : 2.5}" fill="var(--lemon)"><title>${p.label}: ${eur(p.value)}</title></circle>`).join('');
+  const targetLine = target !== null
+    ? `<line x1="0" x2="${w}" y1="${Y(target)}" y2="${Y(target)}" stroke="var(--lav)" stroke-width="1.5" stroke-dasharray="5 5"/>
+       <text x="${w - 4}" y="${Y(target) - 6}" text-anchor="end" class="axis target">obiettivo</text>` : '';
+  return svg(`<svg class="bars line" viewBox="0 0 ${w} ${height}" preserveAspectRatio="none" role="img">
+    <defs><linearGradient id="liqfill" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFF21A" stop-opacity=".28"/><stop offset="1" stop-color="#FFF21A" stop-opacity="0"/></linearGradient></defs>
+    <path d="${area}" fill="url(#liqfill)"/>
+    ${targetLine}
+    <path d="${path}" fill="none" stroke="var(--lemon)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}
+    ${labels}
+  </svg>`);
 }

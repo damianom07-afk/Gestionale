@@ -376,3 +376,95 @@ export async function loadDemoData() {
   await db.put('meta', { key: 'liquidityTarget', value: 300000 });
   await load();
 }
+
+// ---------- Riepilogo per periodo ----------
+
+export const PERIODS = { mese: 1, '3m': 3, '6m': 6, anno: 12, tutto: null };
+
+/** Primo mese con dei movimenti (o il mese corrente se non ce ne sono). */
+export function firstMonth() {
+  let min = monthKey(todayISO());
+  for (const t of state.transactions) if (t.date.slice(0, 7) < min) min = t.date.slice(0, 7);
+  return min;
+}
+
+/** Elenco dei mesi 'YYYY-MM' da start a end compresi. */
+export function monthsBetween(start, end) {
+  const out = [];
+  for (let k = start; k <= end; k = shiftMonth(k, 1)) out.push(k);
+  return out;
+}
+
+/**
+ * Intervallo di mesi per un tipo di periodo.
+ * - mese / 3m / 6m: finestra che finisce nel mese "anchor"
+ * - anno: anno solare del mese "anchor" (fino al mese corrente, se è l'anno in corso)
+ * - tutto: dal primo movimento a oggi
+ */
+export function periodRange(type, anchor) {
+  const now = monthKey(todayISO());
+  if (type === 'tutto') return { start: firstMonth(), end: now };
+  if (type === 'anno') {
+    const y = anchor.slice(0, 4);
+    const end = `${y}-12` > now ? now : `${y}-12`;
+    return { start: `${y}-01`, end };
+  }
+  const n = PERIODS[type];
+  return { start: shiftMonth(anchor, -(n - 1)), end: anchor };
+}
+
+/** Periodo precedente della stessa durata (per i confronti). */
+export function previousRange(type, range) {
+  if (type === 'tutto') return null;
+  if (type === 'anno') {
+    const y = Number(range.start.slice(0, 4)) - 1;
+    const len = monthsBetween(range.start, range.end).length;
+    return { start: `${y}-01`, end: shiftMonth(`${y}-01`, len - 1) };
+  }
+  const n = PERIODS[type];
+  return { start: shiftMonth(range.start, -n), end: shiftMonth(range.start, -1) };
+}
+
+export function txInRange({ start, end }) {
+  return state.transactions.filter((t) => { const k = t.date.slice(0, 7); return k >= start && k <= end; });
+}
+
+export function rangeSummary(range) {
+  const list = txInRange(range);
+  const income = sum(ofKind(list, 'entrata'));
+  const expense = sum(ofKind(list, 'spesa'));
+  const invested = sum(ofKind(list, 'investimento'));
+  // per le medie conto solo i mesi da quando hai iniziato a usare l'app
+  const from = range.start < firstMonth() ? firstMonth() : range.start;
+  const months = Math.max(1, from <= range.end ? monthsBetween(from, range.end).length : 1);
+  return {
+    income, expense, invested,
+    net: income - expense - invested,
+    months,
+    count: list.length,
+    savingRate: income > 0 ? (income - expense) / income : null,   // quota di entrate non spesa
+    investRate: income > 0 ? invested / income : null,             // quota di entrate investita
+    avgIncome: Math.round(income / months),
+    avgExpense: Math.round(expense / months),
+    avgInvested: Math.round(invested / months)
+  };
+}
+
+/** Totali per categoria di un tipo in un intervallo. */
+export function byCategoryInRange(kind, range) {
+  const map = new Map();
+  for (const t of ofKind(txInRange(range), kind)) map.set(t.categoryId, (map.get(t.categoryId) || 0) + t.amount);
+  return [...map.entries()]
+    .map(([id, amount]) => ({ id, category: categoryById(id) || { name: '?', emoji: '•', color: '#666' }, amount }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
+/** Riga per ogni mese dell'intervallo, con la liquidità a fine mese. */
+export function monthlyRows(range) {
+  return monthsBetween(range.start, range.end).map((k) => ({ key: k, ...monthSummary(k), liquidity: liquidityAtMonthEnd(k) }));
+}
+
+/** Liquidità all'inizio di un intervallo (= fine del mese prima). */
+export function liquidityBefore(range) {
+  return liquidityAtMonthEnd(shiftMonth(range.start, -1));
+}

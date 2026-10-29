@@ -36,7 +36,7 @@ export function liquidityCard(ctx, { liquidity, status, label = 'Liquidità', on
 export function renderAccounts(ctx) {
   const root = h('div', { class: 'page' });
   const liquidity = totalLiquidity();
-  root.append(h('header', { class: 'top' }, h('h1', { class: 'display sm' }, 'Conti')));
+  root.append(h('header', { class: 'top' }, h('h1', { class: 'display sm' }, 'Conti'), ctx.settingsButton()));
 
   root.append(liquidityCard(ctx, { liquidity, status: targetStatus(liquidity), label: 'Liquidità oggi', onclick: () => editTarget(ctx) }));
 
