@@ -234,9 +234,9 @@ export function guessCategory({ merchant = '', text = '' }, kind = 'spesa') {
   const key = merchantKey(merchant);
   if (key.length >= 3) {
     const exact = state.rules.find((r) => r.key === key);
-    if (exact && categoryById(exact.categoryId)?.kind === kind) return { categoryId: exact.categoryId, source: 'imparata' };
+    if (exact && categoryById(exact.categoryId)?.kind === kind) return { categoryId: exact.categoryId, accountId: exact.accountId || null, source: 'imparata' };
     const partial = state.rules.find((r) => r.key.length >= 4 && (key.includes(r.key) || r.key.includes(key)));
-    if (partial && categoryById(partial.categoryId)?.kind === kind) return { categoryId: partial.categoryId, source: 'imparata' };
+    if (partial && categoryById(partial.categoryId)?.kind === kind) return { categoryId: partial.categoryId, accountId: partial.accountId || null, source: 'imparata' };
   }
   const haystack = normalize(merchant + ' ' + text);
   if (!haystack) return null;
@@ -250,10 +250,10 @@ export function guessCategory({ merchant = '', text = '' }, kind = 'spesa') {
 }
 
 /** Ricorda che questo esercente va in questa categoria. */
-export async function learnRule(merchant, categoryId) {
+export async function learnRule(merchant, categoryId, accountId = null) {
   const key = merchantKey(merchant);
   if (key.length < 3) return;
-  await save('rules', { key, categoryId, updatedAt: Date.now() });
+  await save('rules', { key, categoryId, accountId, updatedAt: Date.now() });
 }
 
 export async function clearRules() {
@@ -316,8 +316,10 @@ export function accountBalance(accountId, upToDate = null) {
 }
 
 /** Liquidità totale (somma dei conti). Con upToDate = 'YYYY-MM-DD' calcola quella a quella data. */
+export const isLiquid = (a) => a.liquid !== false;
+
 export function totalLiquidity(upToDate = null) {
-  return state.accounts.reduce((s, a) => s + accountBalance(a.id, upToDate), 0);
+  return state.accounts.filter(isLiquid).reduce((s, a) => s + accountBalance(a.id, upToDate), 0);
 }
 
 /** Liquidità a fine mese (o oggi, se è il mese in corso). */

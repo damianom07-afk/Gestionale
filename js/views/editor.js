@@ -56,6 +56,7 @@ function transactionForm(ctx, close, kind, tx) {
       if (!form.manual) {
         suggestion = guessCategory({ merchant: form.note, text: ocrText }, kind);
         form.categoryId = suggestion?.categoryId || null;
+        applyAccount(suggestion);
         renderChips();
       }
     }
@@ -63,6 +64,14 @@ function transactionForm(ctx, close, kind, tx) {
   const dateInput = h('input', { class: 'input', type: 'date', value: form.date, max: todayISO(), onchange: (e) => (form.date = e.target.value) });
   const accountSelect = h('select', { class: 'input select', onchange: (e) => (form.accountId = e.target.value) },
     state.accounts.map((a) => h('option', { value: a.id, selected: a.id === form.accountId }, a.name)));
+  let accountTouched = !!tx;
+  accountSelect.addEventListener('change', () => (accountTouched = true));
+  // se l'esercente è già noto, proponi anche il conto usato l'ultima volta
+  function applyAccount(sug) {
+    if (accountTouched || !sug?.accountId || !state.accounts.some((a) => a.id === sug.accountId)) return;
+    form.accountId = sug.accountId;
+    accountSelect.value = sug.accountId;
+  }
 
   // --- Categorie a "chip"
   const chips = h('div', { class: 'chips' });
@@ -110,7 +119,7 @@ function transactionForm(ctx, close, kind, tx) {
     if (r.date) { form.date = r.date; dateInput.value = r.date; found.push('data'); }
     if (r.merchant) { form.note = r.merchant; noteInput.value = r.merchant; found.push('esercente'); }
     suggestion = guessCategory({ merchant: form.note, text }, 'spesa');
-    if (suggestion) { form.categoryId = suggestion.categoryId; form.manual = false; found.push('categoria'); }
+    if (suggestion) { form.categoryId = suggestion.categoryId; form.manual = false; applyAccount(suggestion); found.push('categoria'); }
     renderChips();
     scanStatus.replaceChildren(
       h('p', { class: found.includes('importo') ? 'ok' : 'warn' },
@@ -163,7 +172,7 @@ function transactionForm(ctx, close, kind, tx) {
       accountId: form.accountId,
       photo: form.photo || null
     });
-    if (form.note.trim()) await learnRule(form.note, form.categoryId);
+    if (form.note.trim()) await learnRule(form.note, form.categoryId, form.accountId);
     toast(tx ? 'Movimento aggiornato' : SAVED[kind]);
     close();
     ctx.refresh();

@@ -135,6 +135,14 @@ h1, h2, h3, p { margin: 0; }
 .month-row-sub .investimento { color: var(--lav); }
 .month-row-sub .liq { margin-left: auto; }
 
+/* ---------- Interruttore ---------- */
+.switch-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: var(--surface-2); border-radius: 14px; padding: 12px 14px; font-size: 16px; font-weight: 600; }
+.switch { -webkit-appearance: none; appearance: none; width: 51px; height: 31px; border-radius: 16px; background: #3A3A3A; position: relative; flex: none; margin: 0; cursor: pointer; transition: background .2s; }
+.switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.3); transition: transform .2s; }
+.switch:checked { background: var(--lemon); }
+.switch:checked::after { transform: translateX(20px); background: var(--char); }
+.muted-list .tx-amount { color: var(--muted); }
+
 /* ---------- Card generiche ---------- */
 .card { background: var(--surface); border-radius: var(--radius); padding: 14px; }
 .card.list { padding: 4px 0; }

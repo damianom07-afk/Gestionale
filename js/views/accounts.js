@@ -2,7 +2,7 @@
 // L'idea: scegli quanta liquidità vuoi tenere. Quello che sta sopra l'obiettivo
 // lo puoi investire; quando sei all'obiettivo, ogni mese entrate − spese − investito = 0.
 import {
-  state, accountBalance, totalLiquidity, targetStatus, liquidityTarget, setLiquidityTarget,
+  state, accountBalance, totalLiquidity, isLiquid, targetStatus, liquidityTarget, setLiquidityTarget,
   saveAccount, deleteAccount
 } from '../model.js';
 import { h, eur, bigMoney, openSheet, field, toast, confirmDialog, parseEuro, centsToInput, sectionTitle } from '../ui.js';
@@ -51,16 +51,22 @@ export function renderAccounts(ctx) {
   // --- Elenco conti
   root.append(sectionTitle('I tuoi conti', h('button', { class: 'link', onclick: () => editAccount(ctx) }, '+ Nuovo')));
   const balances = state.accounts.map((a, i) => ({ a, b: accountBalance(a.id), color: ACCOUNT_COLORS[i % ACCOUNT_COLORS.length] }));
-  const positive = balances.filter((x) => x.b > 0);
+  const liquid = balances.filter((x) => isLiquid(x.a));
+  const others = balances.filter((x) => !isLiquid(x.a));
+  const positive = liquid.filter((x) => x.b > 0);
   if (positive.length > 1) {
     root.append(h('section', { class: 'card' }, stackBar(positive.map((x) => ({ value: x.b, color: x.color })))));
   }
-  root.append(h('section', { class: 'card list' }, balances.map(({ a, b, color }) =>
+  const row = ({ a, b, color }) =>
     h('button', { class: 'tx-row', onclick: () => editAccount(ctx, a) },
-      h('span', { class: 'tx-icon', style: { '--c': color } }, a.name.slice(0, 1).toUpperCase()),
+      h('span', { class: 'tx-icon', style: { '--c': isLiquid(a) ? color : '#8E8E8A' } }, a.name.slice(0, 1).toUpperCase()),
       h('span', { class: 'tx-text' }, h('strong', {}, a.name), h('small', {}, `Saldo iniziale ${eur(a.initial || 0)}`)),
-      h('span', { class: 'tx-amount' + (b < 0 ? ' neg' : '') }, eur(b)))
-  )));
+      h('span', { class: 'tx-amount' + (b < 0 ? ' neg' : '') }, eur(b)));
+  if (liquid.length) root.append(h('section', { class: 'card list' }, liquid.map(row)));
+  if (others.length) {
+    root.append(h('p', { class: 'eyebrow pad' }, 'Fuori dalla liquidità'));
+    root.append(h('section', { class: 'card list muted-list' }, others.map(row)));
+  }
   return root;
 }
 
@@ -95,6 +101,7 @@ export function editAccount(ctx, acc) {
   openSheet(({ close }) => {
     let name = acc?.name || '';
     let initial = acc ? centsToInput(acc.initial || 0) : '';
+    let liquid = acc ? acc.liquid !== false : true;
     return h('form', {
       class: 'form',
       onsubmit: async (e) => {
@@ -102,12 +109,15 @@ export function editAccount(ctx, acc) {
         if (!name.trim()) return toast('Inserisci un nome', 'error');
         const cents = initial.trim() ? parseEuro(initial) : 0;
         if (isNaN(cents)) return toast('Saldo non valido', 'error');
-        await saveAccount({ ...(acc || {}), name: name.trim(), initial: cents });
+        await saveAccount({ ...(acc || {}), name: name.trim(), initial: cents, liquid });
         toast('Conto salvato'); close(); ctx.refresh();
       }
     },
       field('Nome', h('input', { class: 'input', value: name, placeholder: 'Es. Revolut, Carta, Contanti', oninput: (e) => (name = e.target.value) })),
       field('Saldo iniziale (€)', h('input', { class: 'input', inputmode: 'decimal', value: initial, placeholder: '0,00', oninput: (e) => (initial = e.target.value) })),
+      h('label', { class: 'switch-row' },
+        h('span', {}, 'Conta nella liquidità'),
+        h('input', { type: 'checkbox', class: 'switch', checked: liquid, onchange: (e) => (liquid = e.target.checked) })),
       h('div', { class: 'form-actions' },
         acc ? h('button', {
           type: 'button', class: 'btn danger ghost',

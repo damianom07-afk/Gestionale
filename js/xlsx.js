@@ -237,8 +237,8 @@ export function exportWorkbook() {
         .map((t) => [t.id, t.date, t.kind, euros(t.amount), catName(t.categoryId), accName(t.accountId), t.note || ''])
     ],
     Conti: [
-      ['ID', 'Nome', 'Saldo iniziale'],
-      ...state.accounts.map((a) => [a.id, a.name, euros(a.initial || 0)])
+      ['ID', 'Nome', 'Saldo iniziale', 'Liquidità'],
+      ...state.accounts.map((a) => [a.id, a.name, euros(a.initial || 0), a.liquid === false ? 'No' : 'Sì'])
     ],
     Categorie: [
       ['ID', 'Nome', 'Tipo', 'Emoji', 'Colore', 'Parole chiave'],
@@ -291,7 +291,8 @@ export async function parseWorkbook(file) {
   if (!sheets.Movimenti && !sheets.Categorie) throw new Error('Questo file non è un backup del Gestionale.');
 
   const accounts = toObjects(sheets.Conti).map((r, i) => ({
-    id: String(r.ID || uid()), name: String(r.Nome || `Conto ${i + 1}`), initial: Math.round(toNum(r['Saldo iniziale']) * 100), order: i
+    id: String(r.ID || uid()), name: String(r.Nome || `Conto ${i + 1}`), initial: Math.round(toNum(r['Saldo iniziale']) * 100), order: i,
+    liquid: !/^n/i.test(String(r['Liquidità'] ?? '').trim())
   }));
   const categories = toObjects(sheets.Categorie).map((r, i) => ({
     id: String(r.ID || uid()),

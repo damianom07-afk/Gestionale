@@ -1,6 +1,6 @@
 // Service worker: fa funzionare l'app anche offline.
 // Quando modifichi i file dell'app, aumenta VERSION così i telefoni scaricano la nuova versione.
-const VERSION = 'v4';
+const VERSION = 'v5';
 const APP_CACHE = `app-${VERSION}`;
 const RUNTIME_CACHE = 'runtime'; // font e file dell'OCR, scaricati al primo uso
 
