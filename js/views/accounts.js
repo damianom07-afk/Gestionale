@@ -23,12 +23,12 @@ export function liquidityCard(ctx, { liquidity, status, label = 'Liquidità', on
     const fill = Math.max(0, Math.min(1, status.ratio));
     body.push(h('div', { class: 'liq-bar' + (status.gap >= 0 ? ' full' : '') }, h('i', { style: { width: (fill * 100).toFixed(1) + '%' } })));
     let msg, cls;
-    if (status.gap > 0) { msg = `Sopra l’obiettivo di ${eur(status.gap)}: puoi investirli`; cls = 'over'; }
-    else if (status.gap < 0) { msg = `Mancano ${eur(-status.gap)} per arrivare all’obiettivo`; cls = 'under'; }
-    else { msg = 'Sei esattamente all’obiettivo ✓'; cls = 'ok'; }
+    if (status.gap > 0) { msg = `+${eur(status.gap)} oltre l’obiettivo`; cls = 'over'; }
+    else if (status.gap < 0) { msg = `−${eur(-status.gap)} all’obiettivo`; cls = 'under'; }
+    else { msg = 'Obiettivo raggiunto ✓'; cls = 'ok'; }
     body.push(h('p', { class: 'liq-status ' + cls }, msg));
   } else {
-    body.push(h('p', { class: 'liq-status' }, 'Imposta una liquidità obiettivo →'));
+    body.push(h('p', { class: 'liq-status' }, 'Imposta obiettivo →'));
   }
   return h(tag, { class: 'liq-card', onclick }, ...body);
 }
@@ -45,8 +45,7 @@ export function renderAccounts(ctx) {
       h('div', { class: 'field' },
         h('span', { class: 'label' }, 'Liquidità obiettivo'),
         h('strong', { class: 'big-num' }, liquidityTarget() === null ? 'Non impostata' : eur(liquidityTarget()))),
-      h('button', { class: 'btn primary small', onclick: () => editTarget(ctx) }, liquidityTarget() === null ? 'Imposta' : 'Modifica')),
-    h('p', { class: 'hint' }, 'Quanta liquidità vuoi tenere sui conti. Quello che c’è in più puoi destinarlo agli investimenti; una volta raggiunto l’obiettivo, ogni mese dovresti avere entrate − spese − investito = 0.')
+      h('button', { class: 'btn primary small', onclick: () => editTarget(ctx) }, liquidityTarget() === null ? 'Imposta' : 'Modifica'))
   ));
 
   // --- Elenco conti
@@ -62,7 +61,6 @@ export function renderAccounts(ctx) {
       h('span', { class: 'tx-text' }, h('strong', {}, a.name), h('small', {}, `Saldo iniziale ${eur(a.initial || 0)}`)),
       h('span', { class: 'tx-amount' + (b < 0 ? ' neg' : '') }, eur(b)))
   )));
-  root.append(h('p', { class: 'muted pad small' }, 'Il saldo di ogni conto = saldo iniziale + entrate − spese − investimenti registrati su quel conto.'));
   return root;
 }
 
@@ -81,7 +79,6 @@ export function editTarget(ctx) {
         toast('Obiettivo salvato'); close(); ctx.refresh();
       }
     },
-      h('p', { class: 'muted' }, 'Quanta liquidità vuoi avere in totale sui tuoi conti?'),
       h('label', { class: 'amount-field' }, h('span', { class: 'currency' }, '€'), input),
       h('p', { class: 'hint' }, `Liquidità attuale: ${eur(totalLiquidity())}`),
       h('div', { class: 'form-actions' },
@@ -110,8 +107,7 @@ export function editAccount(ctx, acc) {
       }
     },
       field('Nome', h('input', { class: 'input', value: name, placeholder: 'Es. Revolut, Carta, Contanti', oninput: (e) => (name = e.target.value) })),
-      field('Saldo iniziale (€)', h('input', { class: 'input', inputmode: 'decimal', value: initial, placeholder: '0,00', oninput: (e) => (initial = e.target.value) }),
-        'Quanto c’era sul conto quando hai iniziato a usare l’app. Il saldo attuale si calcola da qui.'),
+      field('Saldo iniziale (€)', h('input', { class: 'input', inputmode: 'decimal', value: initial, placeholder: '0,00', oninput: (e) => (initial = e.target.value) })),
       h('div', { class: 'form-actions' },
         acc ? h('button', {
           type: 'button', class: 'btn danger ghost',

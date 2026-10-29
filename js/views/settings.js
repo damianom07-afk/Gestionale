@@ -13,7 +13,6 @@ export function renderSettings(ctx) {
   const last = state.meta.lastExport;
   root.append(sectionTitle('Backup Excel'));
   root.append(h('section', { class: 'card pad-card' },
-    h('p', { class: 'muted' }, 'I dati sono salvati solo su questo telefono. Esporta un file Excel ogni tanto e salvalo in File/iCloud: è il tuo backup e puoi aprirlo con Excel o Numbers.'),
     h('p', { class: 'small' }, last ? `Ultimo export: ${shortDate(last)}` : 'Nessun export ancora fatto.'),
     h('div', { class: 'row gap' },
       h('button', {
@@ -36,8 +35,7 @@ export function renderSettings(ctx) {
           } catch (e) { toast('Import non riuscito: ' + e.message, 'error'); }
         }
       }, 'Importa Excel')
-    ),
-    h('p', { class: 'hint' }, 'Le foto degli scontrini restano nell’app e non vengono incluse nel file Excel.')
+    )
   ));
 
   // --- Categorie
@@ -56,7 +54,7 @@ export function renderSettings(ctx) {
   // --- Riconoscimento automatico
   root.append(sectionTitle('Riconoscimento categorie'));
   root.append(h('section', { class: 'card pad-card' },
-    h('p', { class: 'muted' }, `L’app ha imparato ${state.rules.length} esercenti dalle tue scelte. Quando salvi una spesa, ricorda in che categoria l’hai messa e la propone la volta dopo. Le parole chiave delle categorie servono per gli esercenti nuovi.`),
+    h('p', { class: 'muted' }, `Esercenti imparati: ${state.rules.length}`),
     state.rules.length ? h('button', {
       class: 'btn ghost',
       onclick: async () => {
@@ -83,7 +81,6 @@ export function renderSettings(ctx) {
     h('p', { class: 'hint' }, `Movimenti salvati: ${state.transactions.length}`)
   ));
 
-  root.append(h('p', { class: 'muted pad small center' }, 'Gestionale · i dati restano su questo dispositivo'));
   return root;
 }
 
@@ -115,8 +112,7 @@ function editCategory(ctx, cat, defaultKind = 'spesa') {
         h('div', { class: 'emoji-grid' }, EMOJIS.map((em) => h('button', { type: 'button', class: em === f.emoji ? 'active' : '', onclick: () => { f.emoji = em; render(); } }, em)))),
       h('div', { class: 'field' }, h('span', { class: 'label' }, 'Colore'),
         h('div', { class: 'swatches' }, CATEGORY_COLORS.map((c) => h('button', { type: 'button', class: c === f.color ? 'active' : '', style: { background: c }, 'aria-label': c, onclick: () => { f.color = c; render(); } })))),
-      field('Parole chiave', h('textarea', { class: 'input', rows: 3, value: f.keywords, placeholder: 'esselunga, conad, coop', oninput: (e) => (f.keywords = e.target.value) }),
-        'Separate da virgola. Se lo scontrino o la descrizione contiene una di queste parole, la spesa finisce qui.'),
+      field('Parole chiave', h('textarea', { class: 'input', rows: 3, value: f.keywords, placeholder: 'esselunga, conad, coop', oninput: (e) => (f.keywords = e.target.value) }), 'Separate da virgola'),
       h('div', { class: 'form-actions' },
         cat ? h('button', {
           type: 'button', class: 'btn danger ghost',

@@ -39,7 +39,6 @@ export function renderDashboard(ctx) {
   root.append(h('section', { class: 'hero-card' },
     h('p', { class: 'eyebrow dark' }, 'Saldo del mese'),
     h('div', { class: 'hero-amount' }, bigMoney(s.net, { sign: true })),
-    h('p', { class: 'hero-formula' }, 'entrate − spese − investito'),
     h('div', { class: 'hero-split' },
       h('button', { onclick: goTo('entrata') }, h('span', { class: 'eyebrow dark' }, 'Entrate'), h('strong', {}, eur(s.income))),
       h('button', { onclick: goTo('spesa') }, h('span', { class: 'eyebrow dark' }, 'Spese'), h('strong', {}, eur(s.expense))),
@@ -51,7 +50,7 @@ export function renderDashboard(ctx) {
   if (state.transactions.length === 0) {
     root.append(h('section', { class: 'card onboarding' },
       h('h2', {}, 'Inizia da qui'),
-      h('p', { class: 'muted' }, 'Imposta i saldi dei tuoi conti e la liquidità obiettivo nella sezione Conti, poi aggiungi spese, entrate e investimenti con il tasto giallo +. Oppure carica dei dati di esempio per vedere come funziona (li cancelli da Impostazioni).'),
+      h('p', { class: 'muted' }, 'Imposta i conti, poi aggiungi i movimenti con il +.'),
       h('div', { class: 'row gap wrap' },
         h('button', { class: 'btn primary', onclick: () => ctx.go('conti') }, 'Imposta i conti'),
         h('button', { class: 'btn ghost', onclick: async () => { await loadDemoData(); ctx.refresh(); } }, 'Dati di esempio')

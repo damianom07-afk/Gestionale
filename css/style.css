@@ -20,10 +20,10 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
 body.locked { overflow: hidden; }
-button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
 button:disabled { opacity: .3; cursor: default; }
 h1, h2, h3, p { margin: 0; }
 
@@ -327,4 +327,45 @@ details[open] { display: flex; flex-direction: column; gap: 10px; }
 @media (min-width: 700px) {
   .view { padding-top: 32px; }
   .hero-amount { font-size: 72px; }
+}
+
+/* =========================================================
+   Rifiniture per iPhone (da SE 375px a Pro Max 430px)
+   ========================================================= */
+.view { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.sheet { max-height: 94vh; max-height: 94dvh; }
+.nav { -webkit-user-select: none; user-select: none; }
+img { -webkit-user-drag: none; }
+
+/* Numeri grandi: si adattano alla larghezza dello schermo */
+.hero-amount { font-size: clamp(40px, 14vw, 60px); }
+.hero-amount .money.long { font-size: .78em; }
+.liq-amount .money.long, .lav-amount .money.long { font-size: .85em; }
+.liq-amount, .lav-amount { font-size: clamp(30px, 10vw, 40px); }
+.input.amount { font-size: clamp(36px, 11vw, 46px); }
+.display { font-size: clamp(36px, 11.5vw, 44px); }
+.display.sm { font-size: clamp(28px, 9vw, 34px); }
+.hero-split strong { font-size: clamp(12px, 3.55vw, 16px); white-space: nowrap; letter-spacing: -.01em; }
+.hero-split { gap: 6px; }
+.tile strong, .kpis .tile strong { font-size: clamp(16px, 4.8vw, 20px); }
+
+/* Campi data e menu a tendina di Safari */
+input[type="date"].input { display: flex; align-items: center; text-align: left; }
+input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: .6; }
+input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; }
+
+/* Schermi stretti (iPhone SE, mini) */
+@media (max-width: 380px) {
+  .view { padding-left: 12px; padding-right: 12px; }
+  .month-switch span { min-width: 84px; font-size: 12px; }
+  .hero-card, .lav-card, .liq-card { padding: 16px; border-radius: 24px; }
+  .segmented button { font-size: 13px; }
+  .segmented.period button { font-size: 12px; }
+  .legend li { grid-template-columns: 12px 1fr auto 34px; gap: 8px; font-size: 13px; }
+  .scan-btn { padding: 10px; gap: 8px; }
+  .scan-btn strong { font-size: 14px; }
+  .nav-item span { font-size: 9.5px; }
+  .tx-row { padding: 10px 12px; gap: 10px; }
+  .tx-icon { width: 36px; height: 36px; }
 }

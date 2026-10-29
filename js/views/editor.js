@@ -77,7 +77,7 @@ function transactionForm(ctx, close, kind, tx) {
       }, h('span', {}, c.emoji), c.name)
     ));
     suggestionNote.textContent = suggestion && form.categoryId
-      ? `✨ Categoria suggerita (${suggestion.source}). Tocca un'altra per cambiarla.`
+      ? '✨ Categoria suggerita'
       : '';
   }
   renderChips();
@@ -173,7 +173,6 @@ function transactionForm(ctx, close, kind, tx) {
     scanTools,
     h('label', { class: 'amount-field ' + kind }, h('span', { class: 'currency' }, '€'), amountInput),
     field(kind === 'spesa' ? 'Descrizione / esercente' : 'Descrizione', noteInput),
-    kind === 'investimento' ? h('p', { class: 'hint' }, 'Soldi destinati agli investimenti: escono dalla liquidità ma non contano come spesa.') : null,
     kindCats.length > 1 ? h('div', { class: 'field' }, h('span', { class: 'label' }, 'Categoria'), chips, suggestionNote) : null,
     h('div', { class: 'row gap' }, field('Data', dateInput), field(kind === 'entrata' ? 'Sul conto' : 'Dal conto', accountSelect)),
     photoBox,

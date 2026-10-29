@@ -63,7 +63,6 @@ export function renderSummary(ctx) {
   root.append(h('section', { class: 'hero-card' },
     h('p', { class: 'eyebrow dark' }, 'Saldo del periodo'),
     h('div', { class: 'hero-amount' }, bigMoney(cur.net, { sign: true })),
-    h('p', { class: 'hero-formula' }, 'entrate − spese − investito'),
     h('div', { class: 'hero-split' },
       h('div', {}, h('span', { class: 'eyebrow dark' }, 'Entrate'), h('strong', {}, eur(cur.income)), hasPrev ? delta(cur.income, prev.income, 'up') : null),
       h('div', {}, h('span', { class: 'eyebrow dark' }, 'Spese'), h('strong', {}, eur(cur.expense)), hasPrev ? delta(cur.expense, prev.expense, 'down') : null),
@@ -95,7 +94,7 @@ export function renderSummary(ctx) {
         h('strong', { class: endLiq - startLiq >= 0 ? 'up' : 'down' }, (endLiq - startLiq >= 0 ? '+' : '−') + eur(Math.abs(endLiq - startLiq))))
     ),
     rows.length > 1 ? lineChart(rows.map((r) => ({ label: MONTHS_SHORT[Number(r.key.slice(5)) - 1], value: r.liquidity })), { target }) : null,
-    target !== null ? h('p', { class: 'hint' }, `La linea tratteggiata è l’obiettivo (${eur(target)}).`) : null
+    null
   ));
 
   // --- Andamento entrate / spese / investito
@@ -163,7 +162,6 @@ export function renderSummary(ctx) {
           h('span', { class: 'investimento' }, '−' + eur(r.invested)),
           h('span', { class: 'liq' }, 'Liq. ' + eur(r.liquidity)))
       ))));
-    root.append(h('p', { class: 'muted pad small' }, 'Tocca un mese per aprirlo nella Home.'));
   }
   return root;
 }

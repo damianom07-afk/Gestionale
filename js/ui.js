@@ -50,8 +50,9 @@ export function bigMoney(cents, { sign = false } = {}) {
   const s = eurFmt.format(Math.abs(cents) / 100);
   const m = s.match(/^(.*?)(,\d{2})(\s?€)$/);
   const prefix = cents < 0 ? '−' : sign && cents > 0 ? '+' : '';
-  if (!m) return h('span', { class: 'money' }, prefix + s);
-  return h('span', { class: 'money' }, prefix + m[1], h('small', {}, m[2] + m[3]));
+  const cls = 'money' + ((prefix + s).length > 11 ? ' long' : '');
+  if (!m) return h('span', { class: cls }, prefix + s);
+  return h('span', { class: cls }, prefix + m[1], h('small', {}, m[2] + m[3]));
 }
 
 const MONTHS = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
